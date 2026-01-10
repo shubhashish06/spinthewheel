@@ -1,0 +1,133 @@
+# Spin the Wheel - Digital Signage Game
+# Requirements and Dependencies
+# ============================================================
+
+# ============================================================
+# SYSTEM REQUIREMENTS
+# ============================================================
+# Node.js: 18.0.0 or higher
+# PostgreSQL: 12.0 or higher
+# npm: 9.0.0 or higher (comes with Node.js)
+
+# ============================================================
+# ROOT DEPENDENCIES
+# ============================================================
+
+# Development Dependencies (Root)
+concurrently==8.2.2
+nodemon==3.0.2
+
+# ============================================================
+# BACKEND DEPENDENCIES
+# ============================================================
+# Location: backend/package.json
+
+# Production Dependencies
+express==4.18.2
+ws==8.16.0
+cors==2.8.5
+dotenv==16.3.1
+pg==8.11.3
+uuid==9.0.1
+qrcode==1.5.3
+
+# Development Dependencies
+nodemon==3.0.2
+
+# ============================================================
+# MOBILE FORM DEPENDENCIES
+# ============================================================
+# Location: mobile-form/package.json
+
+# Production Dependencies
+react==18.2.0
+react-dom==18.2.0
+
+# Development Dependencies
+@vitejs/plugin-react==4.2.1
+autoprefixer==10.4.16
+postcss==8.4.32
+tailwindcss==3.3.6
+vite==5.0.8
+
+# ============================================================
+# SIGNAGE DISPLAY DEPENDENCIES
+# ============================================================
+# Location: signage-display/package.json
+
+# Production Dependencies
+react==18.2.0
+react-dom==18.2.0
+qrcode==1.5.3
+
+# Development Dependencies
+@vitejs/plugin-react==4.2.1
+autoprefixer==10.4.16
+postcss==8.4.32
+tailwindcss==3.3.6
+vite==5.0.8
+
+# ============================================================
+# ADMIN DASHBOARD DEPENDENCIES
+# ============================================================
+# Location: admin-dashboard/package.json
+
+# Production Dependencies
+react==18.2.0
+react-dom==18.2.0
+
+# Development Dependencies
+@vitejs/plugin-react==4.2.1
+autoprefixer==10.4.16
+postcss==8.4.32
+tailwindcss==3.3.6
+vite==5.0.8
+
+# ============================================================
+# PRODUCTION DEPLOYMENT DEPENDENCIES
+# ============================================================
+# These are installed on the production server:
+
+# PM2 (Process Manager)
+# Install via: npm install -g pm2
+# Version: latest (or use package manager)
+
+# Nginx (Web Server)
+# Install via: apt-get install nginx (Ubuntu/Debian)
+# Version: 1.18.0 or higher
+
+# Certbot (SSL Certificates)
+# Install via: apt-get install certbot python3-certbot-nginx
+# Version: latest
+
+# ============================================================
+# DATABASE REQUIREMENTS
+# ============================================================
+# PostgreSQL: 12.0 or higher
+# Database Name: spinthewheel (default, configurable)
+# Required Extensions: None (uses standard PostgreSQL)
+
+# ============================================================
+# INSTALLATION COMMANDS
+# ============================================================
+# To install all dependencies, run from project root:
+# npm run install:all
+#
+# This will install dependencies for:
+# - Root project
+# - Backend
+# - Mobile Form
+# - Signage Display
+# - Admin Dashboard
+
+# ============================================================
+# VERSION NOTES
+# ============================================================
+# All version numbers are taken from package.json files as of:
+# - Project creation and updates
+# - Using exact versions (==) where specified in package.json
+# - Using caret ranges (^) converted to minimum versions shown
+#
+# Note: Some packages may have sub-dependencies that are installed
+# automatically by npm. This file lists only direct dependencies
+# as specified in package.json files.

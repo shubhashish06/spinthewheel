@@ -1,0 +1,24 @@
+{
+  "name": "spin-the-wheel-signage",
+  "version": "1.0.0",
+  "description": "Interactive Spin the Wheel digital signage game system",
+  "main": "backend/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:mobile\" \"npm run dev:signage\" \"npm run dev:admin\"",
+    "dev:backend": "cd backend && nodemon server.js",
+    "dev:mobile": "cd mobile-form && npm run dev",
+    "dev:signage": "cd signage-display && npm run dev",
+    "dev:admin": "cd admin-dashboard && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../mobile-form && npm install && cd ../signage-display && npm install && cd ../admin-dashboard && npm install",
+    "build": "cd mobile-form && npm run build && cd ../signage-display && npm run build && cd ../admin-dashboard && npm run build",
+    "start": "cd backend && node server.js",
+    "start:pm2": "pm2 start ecosystem.config.js"
+  },
+  "keywords": ["signage", "game", "wheel", "interactive"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2"
+  }
+}
