@@ -81,7 +81,7 @@ This starts:
    - You should see a QR code
 
 2. **Test Mobile Form:**
-   - Go to http://localhost:3002?signage=DEFAULT
+   - Go to http://localhost:3002?id=DEFAULT
    - Fill in your name and submit
    - Watch the signage display - the wheel should spin!
 
@@ -101,7 +101,7 @@ npm start
 3. Access:
    - Superadmin: http://localhost:3001/superadmin
    - Instance Admin: http://localhost:3001/admin?id=DEFAULT
-   - Mobile form: http://localhost:3001/play/?signage=DEFAULT
+   - Mobile form: http://localhost:3001/play/?id=DEFAULT
    - Signage: http://localhost:3001/signage?id=DEFAULT
 
 ## Quick Access URLs
@@ -109,13 +109,13 @@ npm start
 ### Development Mode
 - Superadmin: `http://localhost:3004/superadmin` (after build)
 - Instance Admin: `http://localhost:3004?id=DEFAULT` (after build)
-- Mobile Form: `http://localhost:3002?signage=DEFAULT`
+- Mobile Form: `http://localhost:3002?id=DEFAULT`
 - Signage: `http://localhost:3003?id=DEFAULT`
 
 ### Production Mode
 - Superadmin: `http://localhost:3001/superadmin`
 - Instance Admin: `http://localhost:3001/admin?id=DEFAULT`
-- Mobile Form: `http://localhost:3001/play/?signage=DEFAULT`
+- Mobile Form: `http://localhost:3001/play/?id=DEFAULT`
 - Signage: `http://localhost:3001/signage?id=DEFAULT`
 
 ## Troubleshooting

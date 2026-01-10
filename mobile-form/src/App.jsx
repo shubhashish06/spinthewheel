@@ -14,7 +14,7 @@ function App() {
   useEffect(() => {
     // Get signage ID from URL parameter
     const params = new URLSearchParams(window.location.search);
-    const id = params.get('signage') || 'DEFAULT';
+    const id = params.get('id') || 'DEFAULT';
     setSignageId(id);
   }, []);
 

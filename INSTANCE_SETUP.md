@@ -149,7 +149,7 @@ http://localhost:3001/signage?id=INSTANCE_ID
 ### Mobile Form
 
 ```
-http://localhost:3001/play/?signage=INSTANCE_ID
+http://localhost:3001/play/?id=INSTANCE_ID
 ```
 
 - Users enter information
@@ -260,20 +260,20 @@ DELETE /api/signage/:id
 - Location: "Downtown Store"
 - Admin: `http://localhost:3001/admin?id=store_1`
 - Signage: `http://localhost:3001/signage?id=store_1`
-- Form: `http://localhost:3001/play/?signage=store_1`
+- Form: `http://localhost:3001/play/?id=store_1`
 
 ### Store 2
 - ID: `store_2`
 - Location: "Mall Location"
 - Admin: `http://localhost:3001/admin?id=store_2`
 - Signage: `http://localhost:3001/signage?id=store_2`
-- Form: `http://localhost:3001/play/?signage=store_2`
+- Form: `http://localhost:3001/play/?id=store_2`
 
 ### Store 3
 - ID: `store_3`
 - Location: "Airport Kiosk"
 - Admin: `http://localhost:3001/admin?id=store_3`
 - Signage: `http://localhost:3001/signage?id=store_3`
-- Form: `http://localhost:3001/play/?signage=store_3`
+- Form: `http://localhost:3001/play/?id=store_3`
 
 Each store operates independently with its own data and configuration.

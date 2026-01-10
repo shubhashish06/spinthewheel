@@ -29,7 +29,7 @@ function App() {
 
     // Generate QR code
     const baseUrl = window.location.origin;
-    const formUrl = `${baseUrl}/play/?signage=${id}`;
+    const formUrl = `${baseUrl}/play/?id=${id}`;
     QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
       .then(url => setQrCodeUrl(url))
       .catch(err => console.error('QR code generation error:', err));

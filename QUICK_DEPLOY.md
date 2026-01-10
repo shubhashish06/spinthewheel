@@ -109,7 +109,7 @@ After deployment, verify all URLs work:
 
 - ✅ **Superadmin**: `https://yourdomain.com/superadmin`
 - ✅ **Instance Admin**: `https://yourdomain.com/admin?id=DEFAULT`
-- ✅ **Mobile Form**: `https://yourdomain.com/play/?signage=DEFAULT`
+- ✅ **Mobile Form**: `https://yourdomain.com/play/?id=DEFAULT`
 - ✅ **Signage Display**: `https://yourdomain.com/signage?id=DEFAULT`
 - ✅ **API**: `https://yourdomain.com/api/signage/DEFAULT`
 

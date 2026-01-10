@@ -60,14 +60,14 @@ https://yourdomain.com/admin?id=mall_kiosk
 **Form where users enter their information**
 
 ```
-https://yourdomain.com/play/?signage=INSTANCE_ID
+https://yourdomain.com/play/?id=INSTANCE_ID
 ```
 
 **Examples:**
 ```
-https://yourdomain.com/play/?signage=DEFAULT
-https://yourdomain.com/play/?signage=store_1
-https://yourdomain.com/play/?signage=store_2
+https://yourdomain.com/play/?id=DEFAULT
+https://yourdomain.com/play/?id=store_1
+https://yourdomain.com/play/?id=store_2
 ```
 
 **Purpose:**
@@ -76,7 +76,7 @@ https://yourdomain.com/play/?signage=store_2
 - Mobile-optimized interface
 - Automatically linked to correct signage instance
 
-**Note:** The `signage` parameter must match an existing instance ID (created in superadmin)
+**Note:** The `id` parameter must match an existing instance ID (created in superadmin)
 
 ---
 
@@ -114,7 +114,7 @@ https://yourdomain.com/signage?id=store_2
 When running `npm run dev`, access at:
 
 - **Backend API**: `http://localhost:3001`
-- **Mobile Form**: `http://localhost:3002?signage=DEFAULT`
+- **Mobile Form**: `http://localhost:3002?id=DEFAULT`
 - **Signage Display**: `http://localhost:3003?id=DEFAULT`
 - **Admin Dashboard**: `http://localhost:3004`
 - **Superadmin**: `http://localhost:3004/superadmin` (after build)
@@ -123,7 +123,7 @@ When running production build locally:
 
 - **Superadmin**: `http://localhost:3001/superadmin`
 - **Instance Admin**: `http://localhost:3001/admin?id=DEFAULT`
-- **Mobile Form**: `http://localhost:3001/play/?signage=DEFAULT`
+- **Mobile Form**: `http://localhost:3001/play/?id=DEFAULT`
 - **Signage Display**: `http://localhost:3001/signage?id=DEFAULT`
 
 ---
@@ -134,7 +134,7 @@ When running production build locally:
 |-----------|----------|---------|----------|
 | **Superadmin** | None | `/superadmin` | No |
 | **Instance Admin** | `?id=INSTANCE_ID` | `/admin?id=store_1` | Yes |
-| **Mobile Form** | `?signage=INSTANCE_ID` | `/play/?signage=store_1` | Yes |
+| **Mobile Form** | `?id=INSTANCE_ID` | `/play/?id=store_1` | Yes |
 | **Signage Display** | `?id=INSTANCE_ID` | `/signage?id=store_1` | Yes |
 
 ---
@@ -163,7 +163,7 @@ When running production build locally:
 
 4. **User Plays** (Mobile Form):
    ```
-   https://yourdomain.com/play/?signage=store_1
+   https://yourdomain.com/play/?id=store_1
    → User scans QR code, enters info, submits
    ```
 
@@ -185,7 +185,7 @@ When running production build locally:
 |-----------|---------------|---------|
 | **Superadmin** | `https://yourdomain.com/superadmin` | Manage all instances |
 | **Instance Admin** | `https://yourdomain.com/admin?id=INSTANCE_ID` | Manage specific instance |
-| **Mobile Form** | `https://yourdomain.com/play/?signage=INSTANCE_ID` | User entry form |
+| **Mobile Form** | `https://yourdomain.com/play/?id=INSTANCE_ID` | User entry form |
 | **Signage Display** | `https://yourdomain.com/signage?id=INSTANCE_ID` | Game display screen |
 
 ---

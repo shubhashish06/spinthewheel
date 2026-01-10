@@ -139,6 +139,19 @@ The backend serves the built frontend applications at:
 - Signage display: `http://localhost:3001/signage`
 - Admin dashboard: `http://localhost:3001/admin`
 
+## URL Structure
+
+**All application URLs use the `?id=` parameter for instance identification:**
+
+| Component | URL Format | Example |
+|-----------|------------|---------|
+| **Superadmin** | `/superadmin` | `http://localhost:3001/superadmin` |
+| **Instance Admin** | `/admin?id=INSTANCE_ID` | `http://localhost:3001/admin?id=store_1` |
+| **Signage Display** | `/signage?id=INSTANCE_ID` | `http://localhost:3001/signage?id=DEFAULT` |
+| **Mobile Form** | `/play?id=INSTANCE_ID` | `http://localhost:3001/play?id=DEFAULT` |
+
+> **Note:** The QR code on the signage display automatically generates the correct mobile form URL with the instance ID.
+
 ## Usage
 
 ### Setting Up a Signage Display

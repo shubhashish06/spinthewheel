@@ -136,12 +136,14 @@ npm run install:all
 
 ```bash
 cd ~/spinthewheel/backend
+
 nano .env
 ```
 
 Add the following (replace with your actual values):
 
 ```env
+
 # Server Configuration
 PORT=3001
 NODE_ENV=production
@@ -165,7 +167,7 @@ SESSION_SECRET=your-random-secret-key-here
 
 ```bash
 cd ~/spinthewheel/backend
-node -e "
+node -r dotenv/config -e "
 import('pg').then(({ default: pg }) => {
   const pool = new pg.Pool({
     host: process.env.DB_HOST,
@@ -253,7 +255,7 @@ sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 1. **Test API**: `https://yourdomain.com/api/signage/DEFAULT`
 2. **Test Superadmin**: `https://yourdomain.com/superadmin`
 3. **Test Instance Admin**: `https://yourdomain.com/admin?id=DEFAULT`
-4. **Test Mobile Form**: `https://yourdomain.com/play/?signage=DEFAULT`
+4. **Test Mobile Form**: `https://yourdomain.com/play/?id=DEFAULT`
 5. **Test Signage Display**: `https://yourdomain.com/signage?id=DEFAULT`
 
 ## Step 10: Create First Instance
