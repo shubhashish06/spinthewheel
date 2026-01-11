@@ -4,7 +4,7 @@ function OutcomesManager({ signageId }) {
   const [outcomes, setOutcomes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ label: '', probability_weight: 10 });
+  const [formData, setFormData] = useState({ label: '', probability_weight: 10 ,is_negative:false});
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [bulkEditMode, setBulkEditMode] = useState(false);
@@ -56,7 +56,7 @@ function OutcomesManager({ signageId }) {
       if (response.ok) {
         loadOutcomes();
         setShowForm(false);
-        setFormData({ label: '', probability_weight: 10 });
+        setFormData({ label: '', probability_weight: 10,is_negative:false });
       }
     } catch (err) {
       console.error('Failed to create outcome:', err);
@@ -118,6 +118,29 @@ function OutcomesManager({ signageId }) {
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditValue('');
+  };
+  const handleToggleNegative = async (id, currentIsNegative) => {
+    setSaving(true);
+    try {
+      const response = await fetch(`${window.location.origin}/api/outcomes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_negative: !currentIsNegative })
+      });
+
+      if (response.ok) {
+        loadOutcomes();
+        showMessage('success', `Outcome marked as ${!currentIsNegative ? 'negative' : 'normal'}`);
+      } else {
+        const error = await response.json();
+        showMessage('error', error.error || 'Failed to update outcome');
+      }
+    } catch (err) {
+      console.error('Failed to toggle negative status:', err);
+      showMessage('error', 'Failed to update outcome');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleBulkEdit = () => {
@@ -274,6 +297,19 @@ function OutcomesManager({ signageId }) {
                 Higher weight = higher probability. Total weight: {totalWeight}
               </p>
             </div>
+            <div>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.is_negative || false}
+                  onChange={(e) => setFormData({ ...formData, is_negative: e.target.checked })}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Mark as negative outcome (no congratulations message)
+                </span>
+              </label>
+            </div>
             <button
               type="submit"
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -288,6 +324,9 @@ function OutcomesManager({ signageId }) {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Negative
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Label
               </th>
@@ -308,7 +347,7 @@ function OutcomesManager({ signageId }) {
           <tbody className="bg-white divide-y divide-gray-200">
             {outcomes.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
                   No outcomes found
                 </td>
               </tr>
@@ -384,6 +423,31 @@ function OutcomesManager({ signageId }) {
                         >
                           {outcome.probability_weight}
                         </button>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {!bulkEditMode && (
+                        <button
+                          onClick={() => handleToggleNegative(outcome.id, outcome.is_negative || false)}
+                          disabled={saving}
+                          className={`px-2 py-1 text-xs font-semibold rounded-full transition-colors ${
+                            outcome.is_negative 
+                              ? 'bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer' 
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 cursor-pointer'
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          title="Click to toggle negative/normal"
+                        >
+                          {outcome.is_negative ? 'Negative' : 'Normal'}
+                        </button>
+                      )}
+                      {bulkEditMode && (
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          outcome.is_negative 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {outcome.is_negative ? 'Negative' : 'Normal'}
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

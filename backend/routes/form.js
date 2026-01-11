@@ -87,7 +87,8 @@ export async function submitForm(req, res) {
       userName: name,
       outcome: {
         id: outcome.id,
-        label: outcome.label
+        label: outcome.label,
+        is_negative: outcome.is_negative || false
       }
     });
 

@@ -61,11 +61,12 @@ export async function createOutcome(req, res) {
       return res.status(400).json({ error: 'Label must be a non-empty string' });
     }
 
+    const { is_negative } = req.body;
     const result = await pool.query(
-      `INSERT INTO game_outcomes (label, probability_weight, signage_id, is_active)
-       VALUES ($1, $2, $3, true)
+      `INSERT INTO game_outcomes (label, probability_weight, signage_id, is_active, is_negative)
+       VALUES ($1, $2, $3, true, $4)
        RETURNING *`,
-      [label.trim(), weight, signage_id || null]
+      [label.trim(), weight, signage_id || null, is_negative || false]
     );
 
     res.status(201).json(result.rows[0]);
@@ -87,7 +88,7 @@ export async function updateOutcome(req, res) {
     }
 
     const { id } = req.params;
-    const { label, probability_weight, is_active } = req.body;
+    const { label, probability_weight, is_active,is_negative } = req.body;
 
     const updates = [];
     const values = [];
@@ -99,6 +100,13 @@ export async function updateOutcome(req, res) {
       }
       updates.push(`label = $${paramCount++}`);
       values.push(label.trim());
+    }
+    if (is_negative !== undefined) {
+      if (typeof is_negative !== 'boolean') {
+        return res.status(400).json({ error: 'is_negative must be a boolean' });
+      }
+      updates.push(`is_negative = $${paramCount++}`);
+      values.push(is_negative);
     }
     
     if (probability_weight !== undefined) {

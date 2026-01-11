@@ -249,19 +249,25 @@ function App() {
   }
 
   if (state === STATES.RESULT) {
+    const isNegative = currentGame?.outcome?.is_negative || false;
+    
     return (
       <div 
         className="h-screen w-screen flex items-center justify-center animate-fadeIn"
         style={getBackgroundStyle()}
       >
         <div className="text-center text-white animate-slideUp">
-          <div className="text-8xl mb-8 animate-bounce drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">🎉</div>
+          {!isNegative && (
+            <div className="text-8xl mb-8 animate-bounce drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">🎉</div>
+          )}
           <h1 className="text-6xl font-bold mb-4 animate-fadeIn drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
             {currentGame?.userName}
           </h1>
-          <h2 className="text-5xl font-semibold mb-8 animate-fadeIn drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
-            You Won:
-          </h2>
+          {!isNegative && (
+            <h2 className="text-5xl font-semibold mb-8 animate-fadeIn drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
+              You Won:
+            </h2>
+          )}
           <div className="text-7xl font-bold bg-white/20 rounded-2xl px-12 py-8 inline-block animate-scaleIn drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]" style={{ animationDelay: '0.6s', animationFillMode: 'both' }}>
             {currentGame?.outcome?.label || 'Congratulations!'}
           </div>
