@@ -86,8 +86,8 @@ function OutcomesManager({ signageId }) {
 
   const handleSaveWeight = async (id) => {
     const weight = parseInt(editValue);
-    if (isNaN(weight) || weight < 1) {
-      showMessage('error', 'Weight must be a positive integer (minimum 1)');
+    if (isNaN(weight) || weight < 0) {
+      showMessage('error', 'Weight must be a non-negative integer(0 or more)');
       return;
     }
 
@@ -137,8 +137,8 @@ function OutcomesManager({ signageId }) {
 
     // Validate all weights
     for (const outcome of outcomesToUpdate) {
-      if (isNaN(outcome.probability_weight) || outcome.probability_weight < 1) {
-        showMessage('error', `Weight for ${outcomes.find(o => o.id === outcome.id)?.label} must be a positive integer`);
+      if (isNaN(outcome.probability_weight) || outcome.probability_weight < 0) {
+        showMessage('error', `Weight for ${outcomes.find(o => o.id === outcome.id)?.label} must be a non-negative integer 0 or more`);
         return;
       }
     }
@@ -267,7 +267,7 @@ function OutcomesManager({ signageId }) {
                 value={formData.probability_weight}
                 onChange={(e) => setFormData({ ...formData, probability_weight: parseInt(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                min="1"
+                min="0"
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -337,11 +337,11 @@ function OutcomesManager({ signageId }) {
                       {bulkEditMode ? (
                         <input
                           type="number"
-                          min="1"
+                          min="0"
                           value={bulkWeights[outcome.id] !== undefined ? bulkWeights[outcome.id] : outcome.probability_weight}
                           onChange={(e) => {
                             const newWeights = { ...bulkWeights };
-                            newWeights[outcome.id] = parseInt(e.target.value) || 1;
+                            newWeights[outcome.id] = parseInt(e.target.value) || 0;
                             setBulkWeights(newWeights);
                           }}
                           className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -350,7 +350,7 @@ function OutcomesManager({ signageId }) {
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
-                            min="1"
+                            min="0"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onKeyDown={(e) => {

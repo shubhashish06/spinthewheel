@@ -104,9 +104,9 @@ export async function updateOutcome(req, res) {
     if (probability_weight !== undefined) {
       // Validate weight is a positive integer
       const weight = parseInt(probability_weight);
-      if (isNaN(weight) || weight < 1) {
+      if (isNaN(weight) || weight < 0) {
         return res.status(400).json({ 
-          error: 'probability_weight must be a positive integer (minimum 1)' 
+          error: 'probability_weight must be non-negative integer(0 or more)' 
         });
       }
       updates.push(`probability_weight = $${paramCount++}`);

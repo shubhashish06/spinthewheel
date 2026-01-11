@@ -192,8 +192,8 @@ curl -X PUT http://localhost:3001/api/outcomes/123e4567-e89b-12d3-a456-426614174
 ## Validation Rules
 
 1. **probability_weight** must be:
-   - A positive integer
-   - Minimum value: 1
+   - A non-negative integer
+   - Minimum value: 0 (0 = 0% probability, will not be selected)
    - Cannot be null or undefined
 
 2. **label** must be:
@@ -208,7 +208,7 @@ curl -X PUT http://localhost:3001/api/outcomes/123e4567-e89b-12d3-a456-426614174
 ### 400 Bad Request
 ```json
 {
-  "error": "probability_weight must be a positive integer (minimum 1)"
+    "error": "probability_weight must be a non-negative integer (0 or more)"
 }
 ```
 

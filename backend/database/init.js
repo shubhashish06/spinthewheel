@@ -100,6 +100,17 @@ export async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    // Add is_negative column if it doesn't exist (for existing databases)
+    try {
+      await pool.query(`
+        ALTER TABLE game_outcomes 
+        ADD COLUMN IF NOT EXISTS is_negative BOOLEAN DEFAULT false
+      `);
+    } catch (err) {
+      // Column might already exist, ignore error
+      console.log('is_negative column check:', err.message);
+    }
+
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS game_sessions (
