@@ -1,5 +1,8 @@
 import express from 'express';
-import { submitForm } from './form.js';
+import { submitForm, getSession } from './form.js';
+
+
+
 import { 
   getSignageConfig, 
   getSignageStats, 
@@ -26,6 +29,7 @@ export function setupRoutes(app) {
 
   // Form submission
   router.post('/api/submit', submitForm);
+  router.get('/api/session/:sessionId', getSession);
   
   // Signage endpoints
   router.get('/api/signage', listSignageInstances); // List all instances
@@ -51,4 +55,5 @@ export function setupRoutes(app) {
   router.get('/api/admin/sessions', getSessions);
 
   app.use(router);
+
 }

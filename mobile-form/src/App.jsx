@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 function App() {
   const [formData, setFormData] = useState({
@@ -10,6 +10,9 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [sessionId, setSessionId] = useState(null);
+  const [gameResult, setGameResult] = useState(null);
+  const pollingIntervalRef = useRef(null);
 
   useEffect(() => {
     // Get signage ID from URL parameter
@@ -17,6 +20,45 @@ function App() {
     const id = params.get('id') || 'DEFAULT';
     setSignageId(id);
   }, []);
+
+  // Poll for session result when sessionId is set
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const pollSession = async () => {
+      try {
+        const response = await fetch(`${window.location.origin}/api/session/${sessionId}`);
+        if (!response.ok) {
+          console.error('Failed to fetch session');
+          return;
+        }
+
+        const data = await response.json();
+        
+        if (data.status === 'completed' && data.outcome) {
+          // Game completed, stop polling and show result
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          setGameResult(data);
+        }
+      } catch (err) {
+        console.error('Error polling session:', err);
+      }
+    };
+
+    // Poll immediately, then every 1 second
+    pollSession();
+    pollingIntervalRef.current = setInterval(pollSession, 1000);
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [sessionId]);
 
   const handleChange = (e) => {
     setFormData({
@@ -88,18 +130,48 @@ function App() {
       }
 
       setSubmitted(true);
+      setSessionId(data.sessionId); // Store sessionId to start polling
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
       setLoading(false);
     }
   };
 
+  // Show result screen when game is completed
+  if (gameResult) {
+    const isNegative = gameResult.outcome?.is_negative || false;
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+          <div className="mb-6">
+            {!isNegative && (
+              <div className="text-6xl mb-4 animate-bounce">🎉</div>
+            )}
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">
+              {gameResult.userName}
+            </h2>
+            {!isNegative && (
+              <h3 className="text-xl font-semibold text-gray-600 mb-4">
+                You Won:
+              </h3>
+            )}
+            <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl px-6 py-4 inline-block">
+              {gameResult.outcome?.label || 'Congratulations!'}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show "watching screen" message while waiting for result
   if (submitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
           <div className="mb-6">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
               <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -107,6 +179,10 @@ function App() {
             <h2 className="text-3xl font-bold text-gray-800 mb-2">Success!</h2>
             <p className="text-lg text-gray-600 mb-4">Watch the screen!</p>
             <p className="text-sm text-gray-500">Your game is starting now. Look up at the display!</p>
+            <div className="mt-6">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <p className="text-sm text-gray-500 mt-2">Waiting for result...</p>
+            </div>
           </div>
         </div>
       </div>
