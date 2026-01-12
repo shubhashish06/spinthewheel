@@ -110,3 +110,49 @@ export async function submitForm(req, res) {
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+
+
+export async function getSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+
+    const result = await pool.query(
+      `SELECT 
+        gs.id,
+        gs.status,
+        gs.timestamp,
+        u.name,
+        u.email,
+        u.phone,
+        go.id as outcome_id,
+        go.label as outcome_label,
+        go.is_negative
+      FROM game_sessions gs
+      LEFT JOIN users u ON gs.user_id = u.id
+      LEFT JOIN game_outcomes go ON gs.outcome_id = go.id
+      WHERE gs.id = $1`,
+      [sessionId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const session = result.rows[0];
+    res.json({
+      id: session.id,
+      status: session.status,
+      timestamp: session.timestamp,
+      userName: session.name,
+      outcome: session.outcome_label ? {
+        id: session.outcome_id,
+        label: session.outcome_label,
+        is_negative: session.is_negative || false
+      } : null
+    });
+  } catch (error) {
+    console.error('Get session error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
