@@ -1,5 +1,5 @@
 import express from 'express';
-import { submitForm, getSession } from './form.js';
+import { submitForm, getSession, startGame } from './form.js';
 
 
 
@@ -30,6 +30,7 @@ export function setupRoutes(app) {
   // Form submission
   router.post('/api/submit', submitForm);
   router.get('/api/session/:sessionId', getSession);
+  router.post('/api/session/:sessionId/start', startGame);
   
   // Signage endpoints
   router.get('/api/signage', listSignageInstances); // List all instances
