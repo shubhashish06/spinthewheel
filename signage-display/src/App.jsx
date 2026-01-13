@@ -20,6 +20,7 @@ function App() {
   });
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const pingIntervalRef = useRef(null);
 
   useEffect(() => {
     // Get signage ID from URL or use default
@@ -32,7 +33,11 @@ function App() {
     const formUrl = `${baseUrl}/play/?id=${id}`;
     QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
       .then(url => setQrCodeUrl(url))
-      .catch(err => console.error('QR code generation error:', err));
+      .catch(err => {
+        console.error('QR code generation error:', err);
+        // Set empty string to indicate failure, UI will handle gracefully
+        setQrCodeUrl('');
+      });
 
     // Load signage config
     loadSignageConfig(id);
@@ -47,6 +52,9 @@ function App() {
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
       }
     };
   }, []);
@@ -113,18 +121,25 @@ function App() {
     ws.onopen = () => {
       console.log('WebSocket connected');
       // Send ping every 30 seconds to keep connection alive
-      const pingInterval = setInterval(() => {
+      pingIntervalRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'ping' }));
         } else {
-          clearInterval(pingInterval);
+          if (pingIntervalRef.current) {
+            clearInterval(pingIntervalRef.current);
+            pingIntervalRef.current = null;
+          }
         }
       }, 30000);
     };
 
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      handleWebSocketMessage(message);
+      try {
+        const message = JSON.parse(event.data);
+        handleWebSocketMessage(message);
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error);
+      }
     };
 
     ws.onerror = (error) => {
