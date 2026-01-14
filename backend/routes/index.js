@@ -1,8 +1,5 @@
 import express from 'express';
-import { submitForm, getSession, startGame } from './form.js';
-
-
-
+import { submitForm, getSession, startGame, checkEligibility, verifyRedemption } from './form.js';
 import { 
   getSignageConfig, 
   getSignageStats, 
@@ -23,6 +20,9 @@ import {
   getWeightStats
 } from './outcomes.js';
 import { getUsers, getSessions } from './admin.js';
+import { getValidationConfig, updateValidationConfig } from './validation.js';
+import { getRedemptions, markRedemptionRedeemed, getRedemptionStats } from './redemptions.js';
+import { getDuplicateAttempts, getValidationAnalytics } from './analytics.js';
 
 export function setupRoutes(app) {
   const router = express.Router();
@@ -31,6 +31,8 @@ export function setupRoutes(app) {
   router.post('/api/submit', submitForm);
   router.get('/api/session/:sessionId', getSession);
   router.post('/api/session/:sessionId/start', startGame);
+  router.get('/api/check-eligibility', checkEligibility);
+  router.post('/api/verify-redemption', verifyRedemption);
   
   // Signage endpoints
   router.get('/api/signage', listSignageInstances); // List all instances
@@ -54,6 +56,19 @@ export function setupRoutes(app) {
   // Admin endpoints
   router.get('/api/admin/users', getUsers);
   router.get('/api/admin/sessions', getSessions);
+
+  // Validation config endpoints
+  router.get('/api/validation/:signageId', getValidationConfig);
+  router.put('/api/validation/:signageId', updateValidationConfig);
+
+  // Redemptions endpoints
+  router.get('/api/redemptions', getRedemptions);
+  router.patch('/api/redemptions/:id/redeem', markRedemptionRedeemed);
+  router.get('/api/redemptions/:signageId/stats', getRedemptionStats);
+
+  // Analytics endpoints
+  router.get('/api/analytics/duplicates', getDuplicateAttempts);
+  router.get('/api/analytics/validation/:signageId', getValidationAnalytics);
 
   app.use(router);
 
