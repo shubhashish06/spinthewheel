@@ -79,6 +79,16 @@ export async function initDatabase() {
       console.log('Background config column check:', err.message);
     }
 
+    // Add timezone column if it doesn't exist
+    try {
+      await pool.query(`
+        ALTER TABLE signage_instances 
+        ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC'
+      `);
+    } catch (err) {
+      console.log('Timezone column check:', err.message);
+    }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

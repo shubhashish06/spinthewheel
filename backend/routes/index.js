@@ -19,13 +19,18 @@ import {
   bulkUpdateWeights,
   getWeightStats
 } from './outcomes.js';
-import { getUsers, getSessions } from './admin.js';
+import { getUsers, getSessions, exportUsers, exportSessions, exportRedemptions } from './admin.js';
 import { getValidationConfig, updateValidationConfig } from './validation.js';
 import { getRedemptions, markRedemptionRedeemed, getRedemptionStats } from './redemptions.js';
 import { getDuplicateAttempts, getValidationAnalytics } from './analytics.js';
+import { generateToken, validateToken } from './tokens.js';
 
 export function setupRoutes(app) {
   const router = express.Router();
+
+  // Token endpoints
+  router.get('/api/token/generate', generateToken);
+  router.get('/api/token/validate', validateToken);
 
   // Form submission
   router.post('/api/submit', submitForm);
@@ -56,6 +61,9 @@ export function setupRoutes(app) {
   // Admin endpoints
   router.get('/api/admin/users', getUsers);
   router.get('/api/admin/sessions', getSessions);
+  router.get('/api/admin/export/users', exportUsers);
+  router.get('/api/admin/export/sessions', exportSessions);
+  router.get('/api/admin/export/redemptions', exportRedemptions);
 
   // Validation config endpoints
   router.get('/api/validation/:signageId', getValidationConfig);

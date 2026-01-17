@@ -17,9 +17,13 @@ export async function getRedemptions(req, res) {
       SELECT 
         r.*,
         gs.signage_id,
-        gs.timestamp as session_timestamp
+        (gs.timestamp AT TIME ZONE 'UTC')::timestamptz as session_timestamp,
+        (r.created_at AT TIME ZONE 'UTC')::timestamptz as created_at,
+        (r.redeemed_at AT TIME ZONE 'UTC')::timestamptz as redeemed_at,
+        si.timezone
       FROM redemptions r
       JOIN game_sessions gs ON r.session_id = gs.id
+      LEFT JOIN signage_instances si ON gs.signage_id = si.id
       WHERE 1=1
     `;
     const params = [];

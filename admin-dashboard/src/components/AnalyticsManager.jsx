@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { formatTimestamp } from '../utils/timezone.js';
 
-function AnalyticsManager({ signageId }) {
+function AnalyticsManager({ signageId, timezone = 'UTC' }) {
   const [analytics, setAnalytics] = useState(null);
   const [duplicateStats, setDuplicateStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -110,7 +111,7 @@ function AnalyticsManager({ signageId }) {
                   <tbody>
                     {duplicateStats.daily_stats.slice(0, 10).map((stat, idx) => (
                       <tr key={idx} className="border-b">
-                        <td className="py-2">{new Date(stat.date).toLocaleDateString()}</td>
+                        <td className="py-2">{formatTimestamp(stat.date, timezone, { year: 'numeric', month: '2-digit', day: '2-digit' })}</td>
                         <td className="text-right py-2">{stat.total_attempts}</td>
                         <td className="text-right py-2">{stat.unique_emails}</td>
                         <td className="text-right py-2">{stat.unique_phones}</td>

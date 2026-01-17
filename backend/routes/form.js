@@ -2,6 +2,40 @@ import { pool } from '../database/init.js';
 import { selectOutcome } from '../utils/probability.js';
 import { broadcastToSignage } from '../websocket/server.js';
 import { normalizeEmail, normalizePhone } from '../utils/validation.js';
+import { activeTokens } from './tokens.js';
+
+// Helper function to format time window in a user-friendly way
+function formatTimeWindow(hours) {
+  if (hours < 1) {
+    return `${Math.round(hours * 60)} minute${Math.round(hours * 60) !== 1 ? 's' : ''}`;
+  } else if (hours < 24) {
+    return `${hours} hour${hours !== 1 ? 's' : ''}`;
+  } else if (hours < 168) { // Less than a week
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    if (remainingHours === 0) {
+      return `${days} day${days !== 1 ? 's' : ''}`;
+    } else {
+      return `${days} day${days !== 1 ? 's' : ''} and ${remainingHours} hour${remainingHours !== 1 ? 's' : ''}`;
+    }
+  } else if (hours < 720) { // Less than a month
+    const weeks = Math.floor(hours / 168);
+    const remainingDays = Math.floor((hours % 168) / 24);
+    if (remainingDays === 0) {
+      return `${weeks} week${weeks !== 1 ? 's' : ''}`;
+    } else {
+      return `${weeks} week${weeks !== 1 ? 's' : ''} and ${remainingDays} day${remainingDays !== 1 ? 's' : ''}`;
+    }
+  } else {
+    const months = Math.floor(hours / 720);
+    const remainingWeeks = Math.floor((hours % 720) / 168);
+    if (remainingWeeks === 0) {
+      return `${months} month${months !== 1 ? 's' : ''}`;
+    } else {
+      return `${months} month${months !== 1 ? 's' : ''} and ${remainingWeeks} week${remainingWeeks !== 1 ? 's' : ''}`;
+    }
+  }
+}
 
 export async function submitForm(req, res) {
   try {
@@ -14,7 +48,37 @@ export async function submitForm(req, res) {
       });
     }
 
-    const { name, email, phone, signageId } = req.body;
+    const { name, email, phone, signageId, token } = req.body;
+
+    // Validate token if provided
+    if (token) {
+      const tokenData = activeTokens.get(token);
+      
+      if (!tokenData) {
+        return res.status(401).json({ 
+          error: 'Invalid or expired token. Please scan the QR code again.' 
+        });
+      }
+      
+      if (Date.now() > tokenData.expiresAt) {
+        activeTokens.delete(token);
+        return res.status(401).json({ 
+          error: 'Token has expired. Please scan the QR code again.' 
+        });
+      }
+      
+      // Verify token is for the correct signage
+      if (tokenData.signageId !== signageId) {
+        return res.status(401).json({ 
+          error: 'Token mismatch. Please scan the QR code again.' 
+        });
+      }
+    } else {
+      // Token is required
+      return res.status(401).json({ 
+        error: 'Access token required. Please scan the QR code to play.' 
+      });
+    }
 
     if (!name || !signageId) {
       return res.status(400).json({ error: 'Name and signageId are required' });
@@ -95,13 +159,23 @@ export async function submitForm(req, res) {
       check_signage_ids: null
     };
 
+    // Determine which signage IDs to check for duplicates
+    let signageIdsToCheck = [signageId];
+    if (config.check_signage_ids) {
+      // Parse comma-separated list of signage IDs
+      const ids = config.check_signage_ids.split(',').map(id => id.trim()).filter(id => id);
+      if (ids.length > 0) {
+        signageIdsToCheck = ids;
+      }
+    }
+
     // Check for existing plays
-    const checkSignageFilter = config.check_across_signages ? '' : `AND gs.signage_id = $3`;
     const existingPlayCheck = await pool.query(`
       SELECT 
         gs.id,
         gs.status,
         gs.timestamp,
+        gs.signage_id,
         go.label as outcome_label,
         go.is_negative
       FROM users u
@@ -109,14 +183,11 @@ export async function submitForm(req, res) {
       JOIN game_outcomes go ON gs.outcome_id = go.id
       WHERE 
         (u.email_normalized = $1 OR u.phone_normalized = $2)
-        ${checkSignageFilter}
+        AND gs.signage_id = ANY($3::text[])
         AND gs.status IN ('pending', 'playing', 'completed')
       ORDER BY gs.timestamp DESC
       LIMIT 1
-    `, config.check_across_signages 
-      ? [normalizedEmail, normalizedPhone]
-      : [normalizedEmail, normalizedPhone, signageId]
-    );
+    `, [normalizedEmail, normalizedPhone, signageIdsToCheck]);
 
     // Apply validation rules if existing play found
     if (existingPlayCheck.rows.length > 0) {
@@ -133,36 +204,34 @@ export async function submitForm(req, res) {
       if (config.time_window_hours) {
         const timeDiff = Date.now() - new Date(existingPlay.timestamp).getTime();
         const hoursDiff = timeDiff / (1000 * 60 * 60);
+        // Block if less than the full time window (must wait full 24 hours)
+        // Use < instead of <= to allow play exactly at 24 hours
         if (hoursDiff < config.time_window_hours) {
+          // Format time window for user-friendly message
+          const timeWindowMsg = formatTimeWindow(config.time_window_hours);
+          
+          // Calculate exact remaining time
+          const exactRemaining = config.time_window_hours - hoursDiff;
+          // Round up to ensure user waits the full period
+          const remainingHours = Math.ceil(exactRemaining);
+          const remainingTimeMsg = formatTimeWindow(remainingHours);
+          
           return res.status(403).json({ 
-            error: `You can only play once every ${config.time_window_hours} hour${config.time_window_hours !== 1 ? 's' : ''}. Please try again later.` 
+            error: `You can only play once every ${timeWindowMsg}. Please try again in ${remainingTimeMsg}.` 
           });
         }
       }
 
       // Rule 3: Check max plays limit
-      let playCount;
-      if (signageIdsToCheck.length === 1) {
-        playCount = await pool.query(`
-          SELECT COUNT(*) as count
-          FROM users u
-          JOIN game_sessions gs ON u.id = gs.user_id
-          WHERE 
-            (u.email_normalized = $1 OR u.phone_normalized = $2)
-            AND gs.signage_id = $3
-            AND gs.status = 'completed'
-        `, [normalizedEmail, normalizedPhone, signageIdsToCheck[0]]);
-      } else {
-        playCount = await pool.query(`
-          SELECT COUNT(*) as count
-          FROM users u
-          JOIN game_sessions gs ON u.id = gs.user_id
-          WHERE 
-            (u.email_normalized = $1 OR u.phone_normalized = $2)
-            AND gs.signage_id = ANY($3::text[])
-            AND gs.status = 'completed'
-        `, [normalizedEmail, normalizedPhone, signageIdsToCheck]);
-      }
+      const playCount = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM users u
+        JOIN game_sessions gs ON u.id = gs.user_id
+        WHERE 
+          (u.email_normalized = $1 OR u.phone_normalized = $2)
+          AND gs.signage_id = ANY($3::text[])
+          AND gs.status = 'completed'
+      `, [normalizedEmail, normalizedPhone, signageIdsToCheck]);
 
       // Check max plays limit (null means unlimited)
       const maxPlaysEmail = config.max_plays_per_email || null;
@@ -184,34 +253,18 @@ export async function submitForm(req, res) {
       // Rule 4: Allow retry if last outcome was negative (if enabled)
       if (!config.allow_retry_on_negative) {
         // Check if last completed play had a non-negative outcome
-        let lastCompletedPlay;
-        if (signageIdsToCheck.length === 1) {
-          lastCompletedPlay = await pool.query(`
-            SELECT go.is_negative, go.label
-            FROM users u
-            JOIN game_sessions gs ON u.id = gs.user_id
-            JOIN game_outcomes go ON gs.outcome_id = go.id
-            WHERE 
-              (u.email_normalized = $1 OR u.phone_normalized = $2)
-              AND gs.signage_id = $3
-              AND gs.status = 'completed'
-            ORDER BY gs.timestamp DESC
-            LIMIT 1
-          `, [normalizedEmail, normalizedPhone, signageIdsToCheck[0]]);
-        } else {
-          lastCompletedPlay = await pool.query(`
-            SELECT go.is_negative, go.label
-            FROM users u
-            JOIN game_sessions gs ON u.id = gs.user_id
-            JOIN game_outcomes go ON gs.outcome_id = go.id
-            WHERE 
-              (u.email_normalized = $1 OR u.phone_normalized = $2)
-              AND gs.signage_id = ANY($3::text[])
-              AND gs.status = 'completed'
-            ORDER BY gs.timestamp DESC
-            LIMIT 1
-          `, [normalizedEmail, normalizedPhone, signageIdsToCheck]);
-        }
+        const lastCompletedPlay = await pool.query(`
+          SELECT go.is_negative, go.label
+          FROM users u
+          JOIN game_sessions gs ON u.id = gs.user_id
+          JOIN game_outcomes go ON gs.outcome_id = go.id
+          WHERE 
+            (u.email_normalized = $1 OR u.phone_normalized = $2)
+            AND gs.signage_id = ANY($3::text[])
+            AND gs.status = 'completed'
+          ORDER BY gs.timestamp DESC
+          LIMIT 1
+        `, [normalizedEmail, normalizedPhone, signageIdsToCheck]);
 
         if (lastCompletedPlay.rows.length > 0) {
           const lastOutcome = lastCompletedPlay.rows[0];
@@ -226,9 +279,10 @@ export async function submitForm(req, res) {
     }
 
     // Create user record with normalized data
+    // Store timestamp in UTC explicitly: convert NOW() (timestamptz) to UTC timestamp
     const userResult = await pool.query(
-      `INSERT INTO users (name, email, phone, email_normalized, phone_normalized, signage_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (name, email, phone, email_normalized, phone_normalized, signage_id, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, (NOW() AT TIME ZONE 'UTC')::timestamp)
        RETURNING id, timestamp`,
       [name, email || null, phone || null, normalizedEmail, normalizedPhone, signageId]
     );
@@ -386,7 +440,8 @@ export async function checkEligibility(req, res) {
         max_plays_per_phone,
         time_window_hours,
         allow_retry_on_negative,
-        check_across_signages
+        check_across_signages,
+        check_signage_ids
       FROM validation_config
       WHERE signage_id = $1`,
       [signageId]
@@ -398,16 +453,26 @@ export async function checkEligibility(req, res) {
       max_plays_per_phone: 1,
       time_window_hours: null,
       allow_retry_on_negative: false,
-      check_across_signages: false
+      check_across_signages: false,
+      check_signage_ids: null
     };
 
+    // Determine which signage IDs to check for duplicates
+    let signageIdsToCheck = [signageId];
+    if (config.check_signage_ids) {
+      const ids = config.check_signage_ids.split(',').map(id => id.trim()).filter(id => id);
+      if (ids.length > 0) {
+        signageIdsToCheck = ids;
+      }
+    }
+
     // Check for existing plays
-    const checkSignageFilter = config.check_across_signages ? '' : `AND gs.signage_id = $3`;
     const existingPlayCheck = await pool.query(`
       SELECT 
         gs.id,
         gs.status,
         gs.timestamp,
+        gs.signage_id,
         go.label as outcome_label,
         go.is_negative
       FROM users u
@@ -415,14 +480,11 @@ export async function checkEligibility(req, res) {
       JOIN game_outcomes go ON gs.outcome_id = go.id
       WHERE 
         (u.email_normalized = $1 OR u.phone_normalized = $2)
-        ${checkSignageFilter}
+        AND gs.signage_id = ANY($3::text[])
         AND gs.status IN ('pending', 'playing', 'completed')
       ORDER BY gs.timestamp DESC
       LIMIT 1
-    `, config.check_across_signages 
-      ? [normalizedEmail, normalizedPhone]
-      : [normalizedEmail, normalizedPhone, signageId]
-    );
+    `, [normalizedEmail, normalizedPhone, signageIdsToCheck]);
 
     let eligible = true;
     let reason = null;
@@ -436,34 +498,29 @@ export async function checkEligibility(req, res) {
       } else if (config.time_window_hours) {
         const timeDiff = Date.now() - new Date(existingPlay.timestamp).getTime();
         const hoursDiff = timeDiff / (1000 * 60 * 60);
+        // Block if less than the full time window (must wait full 24 hours)
         if (hoursDiff < config.time_window_hours) {
           eligible = false;
-          reason = `You can only play once every ${config.time_window_hours} hour${config.time_window_hours !== 1 ? 's' : ''}. Please try again later.`;
+          const timeWindowMsg = formatTimeWindow(config.time_window_hours);
+          
+          // Calculate exact remaining time
+          const exactRemaining = config.time_window_hours - hoursDiff;
+          // Round up to ensure user waits the full period
+          const remainingHours = Math.ceil(exactRemaining);
+          const remainingTimeMsg = formatTimeWindow(remainingHours);
+          reason = `You can only play once every ${timeWindowMsg}. Please try again in ${remainingTimeMsg}.`;
         }
       } else {
         // Check max plays
-        let playCount;
-        if (signageIdsToCheck.length === 1) {
-          playCount = await pool.query(`
-            SELECT COUNT(*) as count
-            FROM users u
-            JOIN game_sessions gs ON u.id = gs.user_id
-            WHERE 
-              (u.email_normalized = $1 OR u.phone_normalized = $2)
-              AND gs.signage_id = $3
-              AND gs.status = 'completed'
-          `, [normalizedEmail, normalizedPhone, signageIdsToCheck[0]]);
-        } else {
-          playCount = await pool.query(`
-            SELECT COUNT(*) as count
-            FROM users u
-            JOIN game_sessions gs ON u.id = gs.user_id
-            WHERE 
-              (u.email_normalized = $1 OR u.phone_normalized = $2)
-              AND gs.signage_id = ANY($3::text[])
-              AND gs.status = 'completed'
-          `, [normalizedEmail, normalizedPhone, signageIdsToCheck]);
-        }
+        const playCount = await pool.query(`
+          SELECT COUNT(*) as count
+          FROM users u
+          JOIN game_sessions gs ON u.id = gs.user_id
+          WHERE 
+            (u.email_normalized = $1 OR u.phone_normalized = $2)
+            AND gs.signage_id = ANY($3::text[])
+            AND gs.status = 'completed'
+        `, [normalizedEmail, normalizedPhone, signageIdsToCheck]);
 
         // Check max plays limit (null means unlimited)
         const maxPlaysEmail = config.max_plays_per_email || null;
@@ -593,16 +650,18 @@ export async function getSession(req, res) {
       `SELECT 
         gs.id,
         gs.status,
-        gs.timestamp,
+        (gs.timestamp AT TIME ZONE 'UTC')::timestamptz as timestamp,
         u.name,
         u.email,
         u.phone,
         go.id as outcome_id,
         go.label as outcome_label,
-        go.is_negative
+        go.is_negative,
+        r.redemption_code
       FROM game_sessions gs
       LEFT JOIN users u ON gs.user_id = u.id
       LEFT JOIN game_outcomes go ON gs.outcome_id = go.id
+      LEFT JOIN redemptions r ON gs.id = r.session_id
       WHERE gs.id = $1`,
       [sessionId]
     );
@@ -621,7 +680,8 @@ export async function getSession(req, res) {
         id: session.outcome_id,
         label: session.outcome_label,
         is_negative: session.is_negative || false
-      } : null
+      } : null,
+      redemptionCode: session.redemption_code || null
     });
   } catch (error) {
     console.error('Get session error:', error);

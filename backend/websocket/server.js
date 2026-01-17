@@ -92,8 +92,16 @@ async function createRedemptionRecord(sessionId) {
       WHERE gs.id = $1 AND gs.status = 'completed'
     `, [sessionId]);
 
-    if (session.rows.length > 0 && !session.rows[0].is_negative) {
+    if (session.rows.length > 0) {
+      const outcome = session.rows[0];
+      
       // Only create redemption for non-negative outcomes
+      if (outcome.is_negative) {
+        console.log(`⏭️  Skipping redemption code generation for negative outcome: ${outcome.outcome_label} (session ${sessionId})`);
+        return; // Exit early for negative outcomes - no redemption code needed
+      }
+      
+      // Generate redemption code only for non-negative outcomes
       const redemptionCode = generateRedemptionCode();
       
       await pool.query(`
@@ -102,10 +110,10 @@ async function createRedemptionRecord(sessionId) {
         ON CONFLICT (session_id) DO NOTHING
       `, [
         sessionId,
-        session.rows[0].email?.toLowerCase().trim() || '',
-        session.rows[0].phone?.replace(/\D/g, '') || '',
-        session.rows[0].outcome_id,
-        session.rows[0].outcome_label,
+        outcome.email?.toLowerCase().trim() || '',
+        outcome.phone?.replace(/\D/g, '') || '',
+        outcome.outcome_id,
+        outcome.outcome_label,
         redemptionCode
       ]);
 

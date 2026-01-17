@@ -121,13 +121,13 @@ function App() {
         ) : (
           <>
             {activeTab === 'overview' && <StatsOverview signageId={signageId} />}
-            {activeTab === 'users' && <UsersList signageId={signageId} />}
-            {activeTab === 'sessions' && <SessionsList signageId={signageId} />}
+            {activeTab === 'users' && <UsersList signageId={signageId} timezone={signageInfo?.timezone || 'UTC'} />}
+            {activeTab === 'sessions' && <SessionsList signageId={signageId} timezone={signageInfo?.timezone || 'UTC'} />}
             {activeTab === 'outcomes' && <OutcomesManager signageId={signageId} />}
             {activeTab === 'background' && <BackgroundManager signageId={signageId} />}
             {activeTab === 'validation' && <ValidationConfigManager signageId={signageId} />}
-            {activeTab === 'redemptions' && <RedemptionsManager signageId={signageId} />}
-            {activeTab === 'analytics' && <AnalyticsManager signageId={signageId} />}
+            {activeTab === 'redemptions' && <RedemptionsManager signageId={signageId} timezone={signageInfo?.timezone || 'UTC'} />}
+            {activeTab === 'analytics' && <AnalyticsManager signageId={signageId} timezone={signageInfo?.timezone || 'UTC'} />}
           </>
         )}
       </main>

@@ -17,7 +17,9 @@ export async function getSignageConfig(req, res) {
 
     // Get signage instance (no auto-creation)
     const result = await pool.query(
-      'SELECT * FROM signage_instances WHERE id = $1',
+      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, 
+              (created_at AT TIME ZONE 'UTC')::timestamptz as created_at 
+       FROM signage_instances WHERE id = $1`,
       [id]
     );
 
@@ -216,10 +218,16 @@ export async function listSignageInstances(req, res) {
     }
 
     const result = await pool.query(
-      'SELECT id, location_name, is_active, created_at FROM signage_instances ORDER BY created_at DESC'
+      'SELECT id, location_name, is_active, timezone, (created_at AT TIME ZONE \'UTC\')::timestamptz as created_at FROM signage_instances ORDER BY created_at DESC'
     );
 
-    res.json(result.rows);
+    // Ensure timestamps are properly formatted as ISO strings for JavaScript
+    const rows = result.rows.map(row => ({
+      ...row,
+      created_at: row.created_at ? new Date(row.created_at).toISOString() : null
+    }));
+
+    res.json(rows);
   } catch (error) {
     console.error('List signage instances error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -238,10 +246,18 @@ export async function createSignageInstance(req, res) {
       });
     }
 
-    const { id, location_name, is_active = true, background_config } = req.body;
+    const { id, location_name, timezone = 'UTC', is_active = true, background_config } = req.body;
 
     if (!id || !location_name) {
       return res.status(400).json({ error: 'id and location_name are required' });
+    }
+
+    // Validate timezone
+    try {
+      // Test if timezone is valid using Intl API
+      Intl.DateTimeFormat(undefined, { timeZone: timezone });
+    } catch (tzError) {
+      return res.status(400).json({ error: `Invalid timezone: ${timezone}` });
     }
 
     // Validate id format (alphanumeric and underscores only)
@@ -254,16 +270,22 @@ export async function createSignageInstance(req, res) {
     const bgConfig = background_config || defaultBackgroundConfig;
 
     const result = await pool.query(
-      `INSERT INTO signage_instances (id, location_name, is_active, background_config)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [id, location_name, is_active, JSON.stringify(bgConfig)]
+      `INSERT INTO signage_instances (id, location_name, timezone, is_active, background_config, created_at)
+       VALUES ($1, $2, $3, $4, $5, (NOW() AT TIME ZONE 'UTC')::timestamp)
+       RETURNING id, location_name, timezone, is_active, background_config, (created_at AT TIME ZONE 'UTC')::timestamptz as created_at`,
+      [id, location_name, timezone, is_active, JSON.stringify(bgConfig)]
     );
 
     // Create default outcomes for this instance (ensures consistent game functionality)
     await createDefaultOutcomes(id);
 
-    res.status(201).json(result.rows[0]);
+    // Ensure timestamp is properly formatted as ISO string for JavaScript
+    const createdInstance = {
+      ...result.rows[0],
+      created_at: result.rows[0].created_at ? new Date(result.rows[0].created_at).toISOString() : null
+    };
+
+    res.status(201).json(createdInstance);
   } catch (error) {
     if (error.code === '23505') {
       // Unique constraint violation
@@ -287,7 +309,7 @@ export async function updateSignageInstance(req, res) {
     }
 
     const { id } = req.params;
-    const { location_name, is_active } = req.body;
+    const { location_name, is_active, timezone } = req.body;
 
     // Build update query dynamically based on provided fields
     const updates = [];
@@ -302,6 +324,11 @@ export async function updateSignageInstance(req, res) {
     if (is_active !== undefined) {
       updates.push(`is_active = $${paramCount++}`);
       values.push(is_active);
+    }
+
+    if (timezone !== undefined) {
+      updates.push(`timezone = $${paramCount++}`);
+      values.push(timezone);
     }
 
     if (updates.length === 0) {

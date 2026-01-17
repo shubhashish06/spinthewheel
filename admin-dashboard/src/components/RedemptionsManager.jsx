@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { formatTimestamp } from '../utils/timezone.js';
 
-function RedemptionsManager({ signageId }) {
+function RedemptionsManager({ signageId, timezone = 'UTC' }) {
   const [redemptions, setRedemptions] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -157,7 +158,7 @@ function RedemptionsManager({ signageId }) {
                   {redemption.user_phone}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(redemption.created_at || redemption.redeemed_at || redemption.session_timestamp).toLocaleDateString()}
+                  {formatTimestamp(redemption.created_at || redemption.redeemed_at || redemption.session_timestamp, timezone)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 text-xs rounded-full ${

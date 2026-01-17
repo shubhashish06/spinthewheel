@@ -7,6 +7,8 @@ function App() {
     phone: ''
   });
   const [signageId, setSignageId] = useState('');
+  const [token, setToken] = useState(null);
+  const [tokenValidated, setTokenValidated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -20,10 +22,23 @@ function App() {
   const timeoutRef = useRef(null);
 
   useEffect(() => {
-    // Get signage ID from URL parameter
+    // Get signage ID and token from URL parameters
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id') || 'DEFAULT';
+    const urlToken = params.get('token');
+    
     setSignageId(id);
+    setToken(urlToken);
+
+    // Validate token if present
+    if (urlToken) {
+      validateAccessToken(urlToken, id);
+    } else {
+      // No token - show error and prevent form access
+      setError('Access denied. Please scan the QR code to play.');
+      setTokenValidated(false);
+      setLoading(true); // Prevent form submission
+    }
 
     // Cleanup timeout on unmount
     return () => {
@@ -33,6 +48,30 @@ function App() {
       }
     };
   }, []);
+
+  const validateAccessToken = async (tokenValue, signageIdValue) => {
+    try {
+      const res = await fetch(`${window.location.origin}/api/token/validate?token=${tokenValue}`);
+      const data = await res.json();
+      
+      if (data.valid && data.signageId === signageIdValue) {
+        // Token is valid, allow form access
+        setError('');
+        setTokenValidated(true);
+        setLoading(false);
+      } else {
+        // Invalid token
+        setError(data.error || 'Invalid access token. Please scan the QR code again.');
+        setTokenValidated(false);
+        setLoading(true);
+      }
+    } catch (err) {
+      console.error('Token validation error:', err);
+      setError('Failed to validate access. Please scan the QR code again.');
+      setTokenValidated(false);
+      setLoading(true);
+    }
+  };
 
   // Poll for session result when game has started
   useEffect(() => {
@@ -118,6 +157,17 @@ function App() {
     e.preventDefault();
     setError('');
 
+    // Re-validate token before submission
+    if (!token) {
+      setError('Access denied. Please scan the QR code to play.');
+      return;
+    }
+
+    if (!tokenValidated) {
+      setError('Token validation failed. Please scan the QR code again.');
+      return;
+    }
+
     if (!formData.name.trim()) {
       setError('Please enter your name');
       return;
@@ -158,7 +208,8 @@ function App() {
         },
         body: JSON.stringify({
           ...formData,
-          signageId
+          signageId,
+          token
         })
       });
 
@@ -261,6 +312,7 @@ function App() {
   // Show result screen when game is completed
   if (gameResult) {
     const isNegative = gameResult.outcome?.is_negative || false;
+    const hasRedemptionCode = gameResult.redemptionCode && !isNegative;
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
@@ -277,9 +329,26 @@ function App() {
                 You Won:
               </h3>
             )}
-            <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl px-6 py-4 inline-block">
+            <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl px-6 py-4 inline-block mb-6">
               {gameResult.outcome?.label || 'Congratulations!'}
             </div>
+            
+            {/* Redemption Code Section */}
+            {hasRedemptionCode && (
+              <div className="mt-6 p-6 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl">
+                <p className="text-sm font-semibold text-gray-700 mb-2">
+                  Your Redemption Code:
+                </p>
+                <div className="bg-white border-2 border-dashed border-yellow-400 rounded-lg p-4 mb-3">
+                  <p className="text-3xl font-mono font-bold text-gray-900 tracking-wider">
+                    {gameResult.redemptionCode}
+                  </p>
+                </div>
+                <p className="text-xs text-gray-600">
+                  Show this code at the counter to claim your prize!
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -455,10 +524,10 @@ function App() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !tokenValidated}
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Submitting...' : 'Enter'}
+            {loading ? 'Submitting...' : !tokenValidated ? 'Access Denied' : 'Enter'}
           </button>
         </form>
       </div>

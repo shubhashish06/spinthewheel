@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { formatTimestamp } from '../utils/timezone.js';
 
-function UsersList({ signageId }) {
+function UsersList({ signageId, timezone = 'UTC' }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     loadUsers();
@@ -23,6 +25,33 @@ function UsersList({ signageId }) {
       });
   };
 
+  const handleExport = async (format) => {
+    try {
+      const url = `${window.location.origin}/api/admin/export/users?signageId=${signageId}&format=${format}`;
+      const res = await fetch(url);
+      
+      if (res.ok) {
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `users_export_${new Date().toISOString().split('T')[0]}.${format === 'xlsx' ? 'xlsx' : 'csv'}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        document.body.removeChild(a);
+        setMessage({ type: 'success', text: `Users exported to ${format.toUpperCase()} successfully` });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      } else {
+        setMessage({ type: 'error', text: 'Failed to export users' });
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+      setMessage({ type: 'error', text: 'Failed to export users' });
+    }
+  };
+
+
   if (loading) {
     return <div className="text-center py-12">Loading users...</div>;
   }
@@ -31,13 +60,39 @@ function UsersList({ signageId }) {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Users</h2>
-        <button
-          onClick={loadUsers}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Refresh
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => handleExport('csv')}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            title="Export to CSV"
+          >
+            📥 Export CSV
+          </button>
+          <button
+            onClick={() => handleExport('xlsx')}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            title="Export to Excel"
+          >
+            📊 Export Excel
+          </button>
+          <button
+            onClick={loadUsers}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
+
+      {message.text && (
+        <div className={`mb-4 p-4 rounded-lg ${
+          message.type === 'success'
+            ? 'bg-green-100 text-green-800 border border-green-300'
+            : 'bg-red-100 text-red-800 border border-red-300'
+        }`}>
+          {message.text}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
@@ -77,7 +132,7 @@ function UsersList({ signageId }) {
                     {user.phone || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(user.timestamp).toLocaleString()}
+                    {formatTimestamp(user.timestamp, timezone)}
                   </td>
                 </tr>
               ))

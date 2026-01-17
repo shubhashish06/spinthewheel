@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
+import { getCommonTimezones, formatTimestamp } from '../utils/timezone.js';
 
 function SuperAdmin() {
   const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState({ id: '', location_name: '' });
+  const [formData, setFormData] = useState({ id: '', location_name: '', timezone: 'UTC' });
   const [message, setMessage] = useState({ type: '', text: '' });
   const [editingId, setEditingId] = useState(null);
-  const [editData, setEditData] = useState({ location_name: '', is_active: true });
+  const [editData, setEditData] = useState({ location_name: '', is_active: true, timezone: 'UTC' });
 
   useEffect(() => {
     loadInstances();
@@ -53,13 +54,14 @@ function SuperAdmin() {
         body: JSON.stringify({
           id: formData.id,
           location_name: formData.location_name,
+          timezone: formData.timezone,
           is_active: true
         })
       });
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'Instance created successfully!' });
-        setFormData({ id: '', location_name: '' });
+        setFormData({ id: '', location_name: '', timezone: 'UTC' });
         setShowCreateForm(false);
         loadInstances();
       } else {
@@ -75,7 +77,8 @@ function SuperAdmin() {
     setEditingId(instance.id);
     setEditData({
       location_name: instance.location_name,
-      is_active: instance.is_active
+      is_active: instance.is_active,
+      timezone: instance.timezone || 'UTC'
     });
   };
 
@@ -231,6 +234,24 @@ function SuperAdmin() {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Timezone <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.timezone}
+                  onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  {getCommonTimezones().map(tz => (
+                    <option key={tz.value} value={tz.value}>{tz.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select the timezone for this location. All timestamps will be displayed in this timezone.
+                </p>
+              </div>
               <button
                 type="submit"
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -261,6 +282,9 @@ function SuperAdmin() {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Timezone
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -269,9 +293,9 @@ function SuperAdmin() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {instances.length === 0 ? (
+              {                instances.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
                     No instances found. Create your first instance above.
                   </td>
                 </tr>
@@ -324,8 +348,25 @@ function SuperAdmin() {
                         </span>
                       )}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {editingId === instance.id ? (
+                        <select
+                          value={editData.timezone}
+                          onChange={(e) => setEditData({ ...editData, timezone: e.target.value })}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm min-w-[200px]"
+                        >
+                          {getCommonTimezones().map(tz => (
+                            <option key={tz.value} value={tz.value}>{tz.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="text-sm text-gray-500">
+                          {instance.timezone || 'UTC'}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(instance.created_at).toLocaleDateString()}
+                      {formatTimestamp(instance.created_at, instance.timezone || 'UTC', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                       {editingId === instance.id ? (
