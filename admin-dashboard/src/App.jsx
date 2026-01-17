@@ -4,6 +4,9 @@ import UsersList from './components/UsersList';
 import SessionsList from './components/SessionsList';
 import OutcomesManager from './components/OutcomesManager';
 import BackgroundManager from './components/BackgroundManager';
+import ValidationConfigManager from './components/ValidationConfigManager';
+import RedemptionsManager from './components/RedemptionsManager';
+import AnalyticsManager from './components/AnalyticsManager';
 import SuperAdmin from './components/SuperAdmin';
 
 function App() {
@@ -52,7 +55,10 @@ function App() {
     { id: 'users', label: 'Users', icon: '👥' },
     { id: 'sessions', label: 'Sessions', icon: '🎮' },
     { id: 'outcomes', label: 'Outcomes', icon: '🎯' },
-    { id: 'background', label: 'Background', icon: '🎨' }
+    { id: 'background', label: 'Background', icon: '🎨' },
+    { id: 'validation', label: 'Validation', icon: '🔒' },
+    { id: 'redemptions', label: 'Redemptions', icon: '🎫' },
+    { id: 'analytics', label: 'Analytics', icon: '📈' }
   ];
 
   return (
@@ -115,10 +121,13 @@ function App() {
         ) : (
           <>
             {activeTab === 'overview' && <StatsOverview signageId={signageId} />}
-            {activeTab === 'users' && <UsersList signageId={signageId} />}
-            {activeTab === 'sessions' && <SessionsList signageId={signageId} />}
+            {activeTab === 'users' && <UsersList signageId={signageId} timezone={signageInfo?.timezone || 'UTC'} />}
+            {activeTab === 'sessions' && <SessionsList signageId={signageId} timezone={signageInfo?.timezone || 'UTC'} />}
             {activeTab === 'outcomes' && <OutcomesManager signageId={signageId} />}
             {activeTab === 'background' && <BackgroundManager signageId={signageId} />}
+            {activeTab === 'validation' && <ValidationConfigManager signageId={signageId} />}
+            {activeTab === 'redemptions' && <RedemptionsManager signageId={signageId} timezone={signageInfo?.timezone || 'UTC'} />}
+            {activeTab === 'analytics' && <AnalyticsManager signageId={signageId} timezone={signageInfo?.timezone || 'UTC'} />}
           </>
         )}
       </main>

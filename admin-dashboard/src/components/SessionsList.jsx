@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { formatTimestamp } from '../utils/timezone.js';
 
-function SessionsList({ signageId }) {
+function SessionsList({ signageId, timezone = 'UTC' }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -106,7 +107,7 @@ function SessionsList({ signageId }) {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(session.timestamp).toLocaleString()}
+                    {formatTimestamp(session.timestamp, timezone)}
                   </td>
                 </tr>
               ))

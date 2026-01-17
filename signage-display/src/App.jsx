@@ -21,6 +21,53 @@ function App() {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const pingIntervalRef = useRef(null);
+  const tokenRefreshIntervalRef = useRef(null);
+  const stateRef = useRef(STATES.IDLE);
+  const currentGameRef = useRef(null);
+
+  // Generate QR code with token (extracted to be reusable)
+  const generateQRCode = async () => {
+    try {
+      const baseUrl = window.location.origin;
+      const id = signageId;
+      
+      // Generate a token for this signage
+      const tokenRes = await fetch(`${baseUrl}/api/token/generate?signageId=${id}`);
+      const tokenData = await tokenRes.json();
+      
+      if (tokenData.token) {
+        // Include token in QR code URL
+        const formUrl = `${baseUrl}/play/?id=${id}&token=${tokenData.token}`;
+        QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
+          .then(url => setQrCodeUrl(url))
+          .catch(err => {
+            console.error('QR code generation error:', err);
+            setQrCodeUrl('');
+          });
+      } else {
+        console.error('Failed to generate token:', tokenData);
+        // Fallback to URL without token (less secure)
+        const formUrl = `${baseUrl}/play/?id=${id}`;
+        QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
+          .then(url => setQrCodeUrl(url))
+          .catch(err => {
+            console.error('QR code generation error:', err);
+            setQrCodeUrl('');
+          });
+      }
+    } catch (err) {
+      console.error('Token generation error:', err);
+      // Fallback to URL without token
+      const baseUrl = window.location.origin;
+      const formUrl = `${baseUrl}/play/?id=${signageId}`;
+      QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
+        .then(url => setQrCodeUrl(url))
+        .catch(qrErr => {
+          console.error('QR code generation error:', qrErr);
+          setQrCodeUrl('');
+        });
+    }
+  };
 
   useEffect(() => {
     // Get signage ID from URL or use default
@@ -28,16 +75,11 @@ function App() {
     const id = params.get('id') || 'DEFAULT';
     setSignageId(id);
 
-    // Generate QR code
-    const baseUrl = window.location.origin;
-    const formUrl = `${baseUrl}/play/?id=${id}`;
-    QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
-      .then(url => setQrCodeUrl(url))
-      .catch(err => {
-        console.error('QR code generation error:', err);
-        // Set empty string to indicate failure, UI will handle gracefully
-        setQrCodeUrl('');
-      });
+    // Generate initial QR code
+    generateQRCode();
+
+    // Regenerate token and QR code every 10 minutes (tokens expire in 15 minutes)
+    tokenRefreshIntervalRef.current = setInterval(generateQRCode, 10 * 60 * 1000);
 
     // Load signage config
     loadSignageConfig(id);
@@ -56,8 +98,21 @@ function App() {
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
       }
+      if (tokenRefreshIntervalRef.current) {
+        clearInterval(tokenRefreshIntervalRef.current);
+      }
     };
-  }, []);
+  }, [signageId]);
+
+  // Sync state ref with state for interval access
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  // Sync currentGame ref for interval access
+  useEffect(() => {
+    currentGameRef.current = currentGame;
+  }, [currentGame]);
 
   const loadSignageConfig = async (id) => {
     try {
@@ -171,6 +226,7 @@ function App() {
         outcome: message.outcome
       });
       setState(STATES.PLAYING);
+      stateRef.current = STATES.PLAYING;
     } else if (message.type === 'background_update') {
       setBackgroundConfig(message.background_config);
     }
@@ -185,12 +241,13 @@ function App() {
         console.error('❌ ERROR: No currentGame or outcome data when showing result!', currentGame);
       }
       
+      // Step 1: show the RESULT screen with congratulations
       setState(STATES.RESULT);
+      stateRef.current = STATES.RESULT;
       
-      // Wait for result screen to be displayed (5 seconds), then mark session as complete
-      // This ensures the session only ends after results are shown on screen
+      // Step 2: after showing the result for 10 seconds,
+      // notify backend, return to idle, and refresh QR for next player
       setTimeout(() => {
-        // Notify backend that game is complete (after results are shown)
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && currentGame) {
           wsRef.current.send(JSON.stringify({
             type: 'game_complete',
@@ -199,11 +256,15 @@ function App() {
           console.log('✅ Game marked as complete:', currentGame.sessionId);
         }
 
-        // Return to idle after results are displayed
         console.log('🔄 Returning to idle state');
         setState(STATES.IDLE);
+        stateRef.current = STATES.IDLE;
         setCurrentGame(null);
-      }, 5000); // Wait 5 seconds for result display
+        currentGameRef.current = null;
+        
+        console.log('🔄 Refreshing QR code after game completion');
+        generateQRCode();
+      }, 10000); // show congratulations for 10 seconds before going back to idle
     }, 300); // Small delay for smooth transition
   };
 
