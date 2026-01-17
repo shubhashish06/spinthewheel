@@ -16,7 +16,7 @@ All phases have been implemented:
 ### ✅ Phase 2: Data Normalization Utilities
 - Created `backend/utils/validation.js` with:
   - `normalizeEmail()` - Normalizes email addresses
-  - `normalizePhone()` - Normalizes phone numbers (10 digits)
+  - `normalizePhone()` - Normalizes phone numbers (minimum 10 digits)
   - `generateRedemptionCode()` - Generates unique redemption codes
 
 ### ✅ Phase 3: Duplicate Validation Logic

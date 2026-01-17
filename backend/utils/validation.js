@@ -19,9 +19,9 @@ export function normalizeEmail(email) {
  * Normalize phone number for duplicate checking
  * - Removes all non-digit characters
  * - Handles country codes (removes leading 1 for US numbers)
- * - Returns 10-digit number or null if invalid
+ * - Returns phone number with at least 10 digits or null if invalid
  * @param {string} phone - Phone number to normalize
- * @returns {string|null} - Normalized phone (10 digits) or null if invalid
+ * @returns {string|null} - Normalized phone (minimum 10 digits) or null if invalid
  */
 export function normalizePhone(phone) {
   if (!phone || typeof phone !== 'string') return null;
@@ -29,13 +29,15 @@ export function normalizePhone(phone) {
   // Remove all non-digit characters
   const digits = phone.replace(/\D/g, '');
   
-  // Handle country codes (assumes 10-digit US numbers)
+  // Handle country codes (removes leading 1 for US/Canada numbers if length is 11)
   if (digits.length === 11 && digits.startsWith('1')) {
-    return digits.substring(1); // Remove leading 1
+    const withoutCountryCode = digits.substring(1);
+    // Return if the remaining digits are at least 10
+    return withoutCountryCode.length >= 10 ? withoutCountryCode : null;
   }
   
-  // Return 10-digit number or null
-  return digits.length === 10 ? digits : null;
+  // Return phone number if it has at least 10 digits
+  return digits.length >= 10 ? digits : null;
 }
 
 /**

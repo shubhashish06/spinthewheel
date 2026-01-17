@@ -190,11 +190,11 @@ function App() {
       return;
     }
 
-    // Validate phone format (10 digits, can include spaces, dashes, or parentheses)
+    // Validate phone format (minimum 10 digits, can include spaces, dashes, or parentheses)
     const phoneDigits = formData.phone.replace(/[\s\-()]/g, '');
-    const phoneRegex = /^[0-9]{10}$/;
+    const phoneRegex = /^[0-9]{10,}$/;
     if (!phoneRegex.test(phoneDigits)) {
-      setError('Please enter a valid 10-digit phone number');
+      setError('Please enter a valid phone number with at least 10 digits');
       return;
     }
 

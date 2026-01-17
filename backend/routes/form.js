@@ -98,11 +98,11 @@ export async function submitForm(req, res) {
       return res.status(400).json({ error: 'Phone number is required' });
     }
 
-    // Validate phone format (10 digits, allowing spaces, dashes, and parentheses)
+    // Validate phone format (minimum 10 digits, allowing spaces, dashes, and parentheses)
     const phoneDigits = phone.replace(/[\s\-()]/g, '');
-    const phoneRegex = /^[0-9]{10}$/;
+    const phoneRegex = /^[0-9]{10,}$/;
     if (!phoneRegex.test(phoneDigits)) {
-      return res.status(400).json({ error: 'Please provide a valid 10-digit phone number' });
+      return res.status(400).json({ error: 'Please provide a valid phone number with at least 10 digits' });
     }
 
     // Validate signage exists (no auto-creation)
