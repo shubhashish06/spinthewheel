@@ -15,10 +15,11 @@ const DEFAULT_OUTCOMES = [
 /**
  * Default background configuration for new signage instances
  * Ensures consistent visual layout across all businesses
+ * Apple-inspired minimalist design with white background
  */
 const DEFAULT_BACKGROUND_CONFIG = {
-  type: 'gradient',
-  colors: ['#991b1b', '#000000', '#991b1b']
+  type: 'solid',
+  color: '#ffffff'
 };
 
 /**

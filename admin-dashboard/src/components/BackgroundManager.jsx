@@ -5,8 +5,10 @@ function BackgroundManager({ signageId }) {
     type: 'gradient',
     colors: ['#991b1b', '#000000', '#991b1b']
   });
+  const [logoUrl, setLogoUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingLogo, setSavingLogo] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [preview, setPreview] = useState(true);
 
@@ -21,6 +23,13 @@ function BackgroundManager({ signageId }) {
       if (res.ok) {
         const data = await res.json();
         setBackgroundConfig(data);
+      }
+      
+      // Load logo URL
+      const signageRes = await fetch(`${window.location.origin}/api/signage/${signageId}`);
+      if (signageRes.ok) {
+        const signageData = await signageRes.json();
+        setLogoUrl(signageData.logo_url || '');
       }
     } catch (err) {
       console.error('Failed to load background:', err);
@@ -49,6 +58,29 @@ function BackgroundManager({ signageId }) {
       showMessage('error', 'Failed to save background');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveLogo = async () => {
+    setSavingLogo(true);
+    try {
+      const res = await fetch(`${window.location.origin}/api/signage/${signageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logo_url: logoUrl || null })
+      });
+
+      if (res.ok) {
+        showMessage('success', 'Logo updated successfully!');
+      } else {
+        const error = await res.json();
+        showMessage('error', error.error || 'Failed to update logo');
+      }
+    } catch (err) {
+      console.error('Failed to save logo:', err);
+      showMessage('error', 'Failed to save logo');
+    } finally {
+      setSavingLogo(false);
     }
   };
 
@@ -364,6 +396,103 @@ function BackgroundManager({ signageId }) {
               )}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Logo Settings */}
+      <div className="mt-6 bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Logo Settings</h3>
+            <p className="text-sm text-gray-500 mt-1">Upload a logo to display in the upper right corner of the signage</p>
+          </div>
+          <button
+            onClick={handleSaveLogo}
+            disabled={savingLogo}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {savingLogo ? 'Saving...' : '💾 Save Logo'}
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Logo URL
+            </label>
+            <input
+              type="url"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="https://example.com/logo.png"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Enter a publicly accessible image URL (JPG, PNG, GIF, WebP, SVG). The logo will appear in the upper right corner.
+            </p>
+          </div>
+          
+          {logoUrl && logoUrl.trim() !== '' && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Logo Preview
+              </label>
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="flex justify-end">
+                  <img
+                    src={logoUrl}
+                    alt="Logo preview"
+                    className="max-h-16 max-w-32 object-contain"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      const errorDiv = e.target.parentElement.querySelector('.logo-error');
+                      if (errorDiv) {
+                        errorDiv.style.display = 'block';
+                      }
+                    }}
+                    onLoad={(e) => {
+                      const errorDiv = e.target.parentElement.querySelector('.logo-error');
+                      if (errorDiv) {
+                        errorDiv.style.display = 'none';
+                      }
+                    }}
+                  />
+                  <div className="hidden logo-error text-xs text-red-600 p-2 bg-red-50 rounded border border-red-200">
+                    ⚠️ Logo failed to load. Please check the URL is correct and publicly accessible.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <button
+            onClick={async () => {
+              setLogoUrl('');
+              setSavingLogo(true);
+              try {
+                const res = await fetch(`${window.location.origin}/api/signage/${signageId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ logo_url: null })
+                });
+                if (res.ok) {
+                  showMessage('success', 'Logo removed successfully!');
+                } else {
+                  const error = await res.json();
+                  showMessage('error', error.error || 'Failed to remove logo');
+                }
+              } catch (err) {
+                console.error('Failed to remove logo:', err);
+                showMessage('error', 'Failed to remove logo');
+              } finally {
+                setSavingLogo(false);
+              }
+            }}
+            disabled={savingLogo || !logoUrl}
+            className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Remove Logo
+          </button>
         </div>
       </div>
 

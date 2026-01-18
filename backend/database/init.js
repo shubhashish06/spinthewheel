@@ -89,6 +89,26 @@ export async function initDatabase() {
       console.log('Timezone column check:', err.message);
     }
 
+    // Add logo_url column if it doesn't exist
+    try {
+      await pool.query(`
+        ALTER TABLE signage_instances 
+        ADD COLUMN IF NOT EXISTS logo_url TEXT
+      `);
+    } catch (err) {
+      console.log('Logo URL column check:', err.message);
+    }
+
+    // Add text_config column if it doesn't exist
+    try {
+      await pool.query(`
+        ALTER TABLE signage_instances 
+        ADD COLUMN IF NOT EXISTS text_config JSONB DEFAULT '{}'
+      `);
+    } catch (err) {
+      console.log('Text config column check:', err.message);
+    }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -140,6 +160,25 @@ export async function initDatabase() {
     } catch (err) {
       // Column might already exist, ignore error
       console.log('is_negative column check:', err.message);
+    }
+
+    // Add text_color and background_color columns if they don't exist
+    try {
+      await pool.query(`
+        ALTER TABLE game_outcomes 
+        ADD COLUMN IF NOT EXISTS text_color VARCHAR(7) DEFAULT NULL
+      `);
+    } catch (err) {
+      console.log('text_color column check:', err.message);
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE game_outcomes 
+        ADD COLUMN IF NOT EXISTS background_color VARCHAR(7) DEFAULT NULL
+      `);
+    } catch (err) {
+      console.log('background_color column check:', err.message);
     }
 
 

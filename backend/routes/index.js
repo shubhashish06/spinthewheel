@@ -1,5 +1,5 @@
 import express from 'express';
-import { submitForm, getSession, startGame, checkEligibility, verifyRedemption } from './form.js';
+import { submitForm, getSession, startGame, checkEligibility, verifyRedemption, completeSession, cleanupStuckSessions } from './form.js';
 import { 
   getSignageConfig, 
   getSignageStats, 
@@ -36,6 +36,7 @@ export function setupRoutes(app) {
   router.post('/api/submit', submitForm);
   router.get('/api/session/:sessionId', getSession);
   router.post('/api/session/:sessionId/start', startGame);
+  router.post('/api/session/:sessionId/complete', completeSession);
   router.get('/api/check-eligibility', checkEligibility);
   router.post('/api/verify-redemption', verifyRedemption);
   
@@ -61,6 +62,7 @@ export function setupRoutes(app) {
   // Admin endpoints
   router.get('/api/admin/users', getUsers);
   router.get('/api/admin/sessions', getSessions);
+  router.post('/api/admin/cleanup-sessions', cleanupStuckSessions);
   router.get('/api/admin/export/users', exportUsers);
   router.get('/api/admin/export/sessions', exportSessions);
   router.get('/api/admin/export/redemptions', exportRedemptions);

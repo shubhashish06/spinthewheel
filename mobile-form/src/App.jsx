@@ -20,6 +20,7 @@ function App() {
   const errorCountRef = useRef(0);
   const pollingStartTimeRef = useRef(null);
   const timeoutRef = useRef(null);
+  const resultTimeoutRef = useRef(null);
 
   useEffect(() => {
     // Get signage ID and token from URL parameters
@@ -45,6 +46,10 @@ function App() {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
+      }
+      if (resultTimeoutRef.current) {
+        clearTimeout(resultTimeoutRef.current);
+        resultTimeoutRef.current = null;
       }
     };
   }, []);
@@ -112,12 +117,19 @@ function App() {
         const data = await response.json();
         
         if (data.status === 'completed' && data.outcome) {
-          // Game completed, stop polling and show result
+          // Game completed, stop polling
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
           }
-          setGameResult(data);
+          // Wait 1 second after getting results from signage before showing on mobile
+          if (resultTimeoutRef.current) {
+            clearTimeout(resultTimeoutRef.current);
+          }
+          resultTimeoutRef.current = setTimeout(() => {
+            setGameResult(data);
+            resultTimeoutRef.current = null;
+          }, 1000);
         }
       } catch (err) {
         console.error('Error polling session:', err);
@@ -141,6 +153,10 @@ function App() {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
+      }
+      if (resultTimeoutRef.current) {
+        clearTimeout(resultTimeoutRef.current);
+        resultTimeoutRef.current = null;
       }
     };
   }, [sessionId, gameStarted]);
@@ -315,41 +331,40 @@ function App() {
     const hasRedemptionCode = gameResult.redemptionCode && !isNegative;
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="mb-6">
-            {!isNegative && (
-              <div className="text-6xl mb-4 animate-bounce">🎉</div>
-            )}
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center space-y-8">
+          {!isNegative && (
+            <div className="text-7xl animate-fadeIn">🎉</div>
+          )}
+          <div className="space-y-4">
+            <h2 className="text-4xl font-light text-gray-900 tracking-tight">
               {gameResult.userName}
             </h2>
             {!isNegative && (
-              <h3 className="text-xl font-semibold text-gray-600 mb-4">
-                You Won:
+              <h3 className="text-2xl font-light text-gray-600">
+                You Won
               </h3>
             )}
-            <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl px-6 py-4 inline-block mb-6">
+            <div className="text-5xl font-light text-gray-900 py-6">
               {gameResult.outcome?.label || 'Congratulations!'}
             </div>
-            
-            {/* Redemption Code Section */}
-            {hasRedemptionCode && (
-              <div className="mt-6 p-6 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl">
-                <p className="text-sm font-semibold text-gray-700 mb-2">
-                  Your Redemption Code:
-                </p>
-                <div className="bg-white border-2 border-dashed border-yellow-400 rounded-lg p-4 mb-3">
-                  <p className="text-3xl font-mono font-bold text-gray-900 tracking-wider">
-                    {gameResult.redemptionCode}
-                  </p>
-                </div>
-                <p className="text-xs text-gray-600">
-                  Show this code at the counter to claim your prize!
+          </div>
+          
+          {hasRedemptionCode && (
+            <div className="mt-12 p-8 bg-gray-50 rounded-2xl border border-gray-200">
+              <p className="text-sm font-medium text-gray-600 mb-4 tracking-wide uppercase">
+                Redemption Code
+              </p>
+              <div className="bg-white border-2 border-gray-300 rounded-xl p-6 mb-4">
+                <p className="text-4xl font-light text-gray-900 tracking-wider">
+                  {gameResult.redemptionCode}
                 </p>
               </div>
-            )}
-          </div>
+              <p className="text-xs text-gray-500 tracking-wide">
+                Show this code at the counter to claim your prize
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -358,78 +373,47 @@ function App() {
   // Show buzzer screen after form submission
   if (submitted && showBuzzer) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="mb-6">
-            <div className="text-6xl mb-6">🔔</div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">Ready to Play!</h2>
-            <p className="text-lg text-gray-600 mb-6">
-              Click the buzzer below to start the game!
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center space-y-12">
+          <div className="space-y-6">
+            <div className="text-6xl">🔔</div>
+            <h2 className="text-4xl font-light text-gray-900 tracking-tight">
+              Ready to Play
+            </h2>
+            <p className="text-lg font-light text-gray-600">
+              Press the buzzer to start the game
             </p>
-            <p className="text-sm text-gray-500 mb-8">
-              Watch the screen after clicking to see your result
-            </p>
-            
-            {/* Debug info - remove in production */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="bg-gray-100 p-2 rounded text-xs mb-4 text-left">
-                <p>Session ID: {sessionId || 'None'}</p>
-                <p>Loading: {loading ? 'true' : 'false'}</p>
-                <p>Show Buzzer: {showBuzzer ? 'true' : 'false'}</p>
-              </div>
-            )}
-            
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-6">
-                {error}
-              </div>
-            )}
-
-            <div className="flex justify-center mb-4">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('🔔 Buzzer button clicked!', { sessionId, loading });
-                  handleBuzzerClick();
-                }}
-                disabled={loading || !sessionId}
-                className="relative w-48 h-48 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-700 text-white font-bold text-xl hover:from-red-600 hover:via-red-700 hover:to-red-800 focus:outline-none focus:ring-4 focus:ring-red-300 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl disabled:shadow-lg"
-                style={{ 
-                  pointerEvents: loading || !sessionId ? 'none' : 'auto',
-                  boxShadow: loading || !sessionId 
-                    ? '0 10px 25px rgba(0,0,0,0.2)' 
-                    : '0 15px 35px rgba(239, 68, 68, 0.4), inset 0 -5px 15px rgba(0,0,0,0.3)'
-                }}
-              >
-                {/* Inner circle for depth effect */}
-                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-red-400 to-red-600 opacity-80"></div>
-                
-                {/* Button content */}
-                <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  {loading ? (
-                    <div className="flex flex-col items-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-[3px] border-white mb-2"></div>
-                      <span className="text-sm">Starting...</span>
-                    </div>
-                  ) : !sessionId ? (
-                    <div className="text-center">
-                      <div className="text-4xl mb-2">⏳</div>
-                      <span className="text-sm">Waiting...</span>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <div className="text-5xl mb-2">🔔</div>
-                      <span className="text-lg font-bold">PRESS</span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Shine effect */}
-                <div className="absolute top-2 left-2 w-16 h-16 rounded-full bg-white opacity-20 blur-sm"></div>
-              </button>
-            </div>
           </div>
+          
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleBuzzerClick();
+            }}
+            disabled={loading || !sessionId}
+            className="relative w-48 h-48 mx-auto rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white font-light text-xl hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-4 focus:ring-red-200 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          >
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              {loading ? (
+                <div className="flex flex-col items-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-white border-t-transparent mb-2"></div>
+                  <span className="text-sm font-light">Starting...</span>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="text-5xl mb-2">🔔</div>
+                  <span className="text-lg font-light">PRESS</span>
+                </div>
+              )}
+            </div>
+          </button>
         </div>
       </div>
     );
@@ -438,39 +422,44 @@ function App() {
   // Show "watching screen" message while waiting for result
   if (submitted && gameStarted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="mb-6">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">Success!</h2>
-            <p className="text-lg text-gray-600 mb-4">Watch the screen!</p>
-            <p className="text-sm text-gray-500">Your game is starting now. Look up at the display!</p>
-            <div className="mt-6">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              <p className="text-sm text-gray-500 mt-2">Waiting for result...</p>
-            </div>
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center space-y-8">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+            <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-3xl font-light text-gray-900 tracking-tight">Success</h2>
+            <p className="text-lg font-light text-gray-600">Watch the screen for your result</p>
+          </div>
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-900"></div>
           </div>
         </div>
       </div>
     );
   }
 
+  // Main form - Apple-inspired design
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Spin the Wheel!</h1>
-          <p className="text-gray-600">Enter your details to play</p>
+    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+      <div className="max-w-md w-full space-y-12">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h1 className="text-5xl font-light text-gray-900 tracking-tight">
+            Spin the Wheel
+          </h1>
+          <p className="text-lg font-light text-gray-600">
+            Enter your details to play
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Name <span className="text-red-500">*</span>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              Name
             </label>
             <input
               type="text"
@@ -479,14 +468,14 @@ function App() {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-              placeholder="Enter your name"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition text-lg font-light"
+              placeholder="Your name"
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email <span className="text-red-500">*</span>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email
             </label>
             <input
               type="email"
@@ -495,14 +484,14 @@ function App() {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-              placeholder="Enter your email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition text-lg font-light"
+              placeholder="your.email@example.com"
             />
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-              Phone <span className="text-red-500">*</span>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+              Phone
             </label>
             <input
               type="tel"
@@ -511,13 +500,13 @@ function App() {
               value={formData.phone}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-              placeholder="Enter your phone number"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition text-lg font-light"
+              placeholder="Your phone number"
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
               {error}
             </div>
           )}
@@ -525,9 +514,9 @@ function App() {
           <button
             type="submit"
             disabled={loading || !tokenValidated}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gray-900 text-white font-light py-4 px-6 rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg"
           >
-            {loading ? 'Submitting...' : !tokenValidated ? 'Access Denied' : 'Enter'}
+            {loading ? 'Submitting...' : !tokenValidated ? 'Access Denied' : 'Continue'}
           </button>
         </form>
       </div>

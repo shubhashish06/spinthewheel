@@ -10,17 +10,18 @@ const COLORS = [
   { main: '#DC2626', border: '#B91C1C' }  // Red
 ];
 
-function Wheel({ userName, outcome, outcomes, onComplete }) {
+function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMessage, readyInstruction, playingMessage, textColorPrimary = '#111827', textColorSecondary = '#4B5563' }) {
   const canvasRef = useRef(null);
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const animationRef = useRef(null);
 
   useEffect(() => {
-    if (outcome && !isSpinning) {
+    // Only start spinning if we have outcome and we're not in ready state
+    if (outcome && !isSpinning && !ready) {
       startSpin();
     }
-  }, [outcome]);
+  }, [outcome, ready]);
 
   const startSpin = () => {
     setIsSpinning(true);
@@ -151,8 +152,6 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
             console.error(`❌ ALIGNMENT ERROR: Segment is ${Math.abs(finalSegmentCenterDeg - 270).toFixed(1)}° away from pointer!`);
           }
           
-          setIsSpinning(false);
-          
           // Smooth transition delay before showing result
           setTimeout(() => {
             onComplete();
@@ -183,56 +182,91 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
 
     const totalSegments = outcomesToDraw.length;
     const segmentAngle = (2 * Math.PI) / totalSegments;
-    // Increased rim width to accommodate pointer inside the border
-    // Pointer height is ~35px, so we need at least 40-45px border
-    const outerRimWidth = Math.max(45, Math.min(60, radius * 0.12));
+    // Minimal rim width to match pointer - thinner border
+    const outerRimWidth = Math.max(20, Math.min(30, radius * 0.06));
     const innerRadius = radius - outerRimWidth;
 
-    // Draw outer black rim with glowing white dots
+    // Draw minimal outer rim - clean, simple border
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = '#000000';
-    ctx.fill();
     
-    // Draw glowing white dots on outer rim
-    const numDots = 48; // Number of dots around the rim
-    // Responsive dot size based on radius
-    const dotRadius = Math.max(2, Math.min(4, radius * 0.01));
-    for (let i = 0; i < numDots; i++) {
-      const angle = (i * 2 * Math.PI / numDots) + rotation;
-      const dotX = centerX + Math.cos(angle) * (radius - outerRimWidth / 2);
-      const dotY = centerY + Math.sin(angle) * (radius - outerRimWidth / 2);
-      
-      ctx.beginPath();
-      ctx.arc(dotX, dotY, dotRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
+    // Subtle shadow only
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = outerRimWidth;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 
-    // Draw segments with alternating red and gray colors
-    outcomesToDraw.forEach((outcome, index) => {
+    // Draw segments with colors from database
+    outcomesToDraw.forEach((outcomeItem, index) => {
       const startAngle = (index * segmentAngle) + rotation;
       const endAngle = ((index + 1) * segmentAngle) + rotation;
-      const colorPair = COLORS[index % COLORS.length];
+      
+      // Use colors from database, fallback to default COLORS array
+      // Normalize color to uppercase for consistent comparison
+      const backgroundColor = outcomeItem.background_color 
+        ? outcomeItem.background_color.toUpperCase() 
+        : COLORS[index % COLORS.length].main;
+      
+      // Calculate darker border color from background
+      const getDarkerColor = (color) => {
+        if (!color) return '#CCCCCC';
+        // Normalize color
+        const normalizedColor = color.toUpperCase();
+        if (normalizedColor === '#E5E5E5') return '#CCCCCC';
+        if (normalizedColor === '#DC2626') return '#B91C1C';
+        // For custom colors, darken by 20%
+        const hex = normalizedColor.replace('#', '');
+        // Handle both 3-digit and 6-digit hex
+        let r, g, b;
+        if (hex.length === 3) {
+          r = parseInt(hex[0] + hex[0], 16);
+          g = parseInt(hex[1] + hex[1], 16);
+          b = parseInt(hex[2] + hex[2], 16);
+        } else {
+          r = parseInt(hex.substr(0, 2), 16);
+          g = parseInt(hex.substr(2, 2), 16);
+          b = parseInt(hex.substr(4, 2), 16);
+        }
+        r = Math.max(0, r - 40);
+        g = Math.max(0, g - 40);
+        b = Math.max(0, b - 40);
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
+      };
+      const calculatedBorderColor = getDarkerColor(backgroundColor);
 
+      // Draw segment - clean, flat design
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
       ctx.arc(centerX, centerY, innerRadius, startAngle, endAngle);
       ctx.closePath();
-      ctx.fillStyle = colorPair.main;
+      
+      // Minimal shadow for subtle depth
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1;
+      ctx.fillStyle = backgroundColor;
       ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
 
-      // Draw segment border
-      ctx.strokeStyle = colorPair.border;
-      ctx.lineWidth = 3;
+      // Minimal segment border - thin, clean line
+      ctx.strokeStyle = calculatedBorderColor;
+      ctx.lineWidth = 1;
       ctx.stroke();
 
-      // Draw text with bold styling matching reference
+      // Draw text with dynamic sizing based on number of outcomes
       const textAngle = startAngle + segmentAngle / 2;
-      const textRadius = innerRadius * 0.7;
+      
+      // Dynamically adjust text radius based on number of outcomes
+      // More outcomes = closer to center to fit better
+      const textRadiusMultiplier = totalSegments <= 4 ? 0.7 : totalSegments <= 8 ? 0.65 : 0.6;
+      const textRadius = innerRadius * textRadiusMultiplier;
       const textX = centerX + Math.cos(textAngle) * textRadius;
       const textY = centerY + Math.sin(textAngle) * textRadius;
 
@@ -242,25 +276,55 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // Text color based on segment color (white on red, black on gray)
-      const textColor = colorPair.main === '#DC2626' ? '#FFFFFF' : '#000000';
-      
-      // Text shadow for readability
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = textColor === '#FFFFFF' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)';
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
+      // Text color from database, fallback to default based on background
+      // Normalize colors for consistent comparison
+      const normalizedBgColor = backgroundColor.toUpperCase();
+      const textColor = outcomeItem.text_color 
+        ? outcomeItem.text_color.toUpperCase()
+        : (normalizedBgColor === '#DC2626' ? '#FFFFFF' : '#000000');
       
       ctx.fillStyle = textColor;
-      // Responsive font size based on radius
-      const fontSize = Math.max(16, Math.min(32, radius * 0.08));
-      ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
       
-      // Wrap text if too long
-      const maxWidth = innerRadius * 0.65;
-      const words = outcome.label.split(' ');
+      // Dynamically calculate font size based on number of outcomes and segment angle
+      // More outcomes = smaller segments = smaller font needed
+      // Base calculation: scale inversely with number of outcomes
+      const baseFontSize = radius * 0.09;
+      // Scale factor: decreases as number of outcomes increases
+      // Formula: 1 / (1 + (outcomes - 4) * 0.15) for outcomes > 4
+      // This ensures smooth scaling: 4 outcomes = 100%, 8 outcomes = ~73%, 12 outcomes = ~56%
+      const scaleFactor = totalSegments <= 4 
+        ? 1.0 
+        : totalSegments <= 8 
+        ? 1.0 / (1 + (totalSegments - 4) * 0.12)
+        : 1.0 / (1 + (totalSegments - 4) * 0.15);
+      
+      const calculatedFontSize = baseFontSize * scaleFactor;
+      // Clamp between reasonable min/max values
+      const fontSize = Math.max(12, Math.min(36, calculatedFontSize));
+      
+      ctx.font = `300 ${fontSize}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif`;
+      
+      // Minimal text shadow for subtle readability
+      // Normalize text color for comparison
+      const normalizedTextColor = textColor.toUpperCase();
+      ctx.shadowBlur = 2;
+      ctx.shadowColor = normalizedTextColor === '#FFFFFF' 
+        ? 'rgba(0, 0, 0, 0.3)' 
+        : 'rgba(255, 255, 255, 0.3)';
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1;
+      
+      // Dynamically adjust max width for text wrapping based on segment angle
+      // Smaller segments (more outcomes) = smaller max width
+      // Calculate arc length for the segment: radius * angle
+      const segmentArcLength = textRadius * segmentAngle;
+      // Use 60-70% of arc length as max width, but clamp to reasonable values
+      const maxWidth = Math.max(fontSize * 2, Math.min(innerRadius * 0.8, segmentArcLength * 0.65));
+      
+      const words = outcomeItem.label.split(' ');
       let line = '';
-      let y = -14;
+      // Adjust initial Y position based on font size for better centering
+      let y = -(fontSize * 0.4);
       
       words.forEach((word, i) => {
         const testLine = line + word + ' ';
@@ -268,12 +332,17 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
         if (metrics.width > maxWidth && i > 0) {
           ctx.fillText(line, 0, y);
           line = word + ' ';
-          y += 32;
+          y += fontSize * 1.2;
         } else {
           line = testLine;
         }
       });
       ctx.fillText(line, 0, y);
+      
+      // Reset shadow
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
       ctx.restore();
     });
 
@@ -282,109 +351,95 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
 
-    // Draw center red button with "SPIN" text (reference style)
-    const centerButtonRadius = 60;
+    // Draw minimal center circle - clean, simple design
+    const centerButtonRadius = Math.max(45, Math.min(60, radius * 0.1));
     
-    // Outer ring of white dots around center button
-    const centerDots = 12;
-    const centerDotRadius = 3;
-    for (let i = 0; i < centerDots; i++) {
-      const angle = (i * 2 * Math.PI / centerDots);
-      const dotX = centerX + Math.cos(angle) * (centerButtonRadius + 8);
-      const dotY = centerY + Math.sin(angle) * (centerButtonRadius + 8);
-      
-      ctx.beginPath();
-      ctx.arc(dotX, dotY, centerDotRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-
-    // Center red circle
+    // Center circle - flat, minimal design
     ctx.beginPath();
     ctx.arc(centerX, centerY, centerButtonRadius, 0, 2 * Math.PI);
+    
+    // Subtle shadow only
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+    
+    // Simple solid color - no gradient
     ctx.fillStyle = '#DC2626';
     ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
     
-    // Center circle border
+    // Minimal border
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Draw "SPIN" text in center (if not spinning, otherwise show outcome)
-    ctx.fillStyle = '#FFFFFF';
-    // Responsive font size for center text
-    const centerFontSize = Math.max(20, Math.min(36, radius * 0.1));
-    ctx.font = `bold ${centerFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
-    ctx.fillText('SPIN', centerX, centerY);
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
+    // Draw minimal triangular pointer at top - clean, simple design
+    // Pointer size matches the rim width exactly from end to end
+    const pointerHeight = outerRimWidth; // Match rim width exactly
+    const pointerWidth = pointerHeight * 0.7;
+    
+    // Position pointer at top edge - aligned with rim from end to end
+    const borderOuterEdge = centerY - radius;
+    const borderInnerEdge = centerY - innerRadius;
+    const pointerTipY = borderInnerEdge; // Tip at inner edge
+    const pointerBaseY = borderOuterEdge; // Base at outer edge - matches rim exactly
 
-    // Draw silver triangular pointer at top edge of wheel (inside the black border)
-    // Pointer sits completely inside the black border, pointing toward center
-    // Responsive pointer size based on radius
-    const pointerHeight = Math.max(25, Math.min(35, radius * 0.08));
-    const pointerWidth = Math.max(20, Math.min(30, radius * 0.07));
-    
-    // Position pointer completely inside the black border
-    // The black border extends from radius (outer edge) to innerRadius (inner edge)
-    // Pointer tip should be at innerRadius (pointing to segments)
-    // Pointer base should be above tip, inside the border area
-    const borderOuterEdge = centerY - radius; // Top of black border
-    const borderInnerEdge = centerY - innerRadius; // Bottom of black border (where segments start)
-    
-    // CRITICAL: Pointer tip position in polar coordinates
-    // The pointer is at the TOP of the wheel (centerY - innerRadius)
-    // In polar coordinates: angle = 3π/2 (270°), radius = innerRadius
-    // This is the point we're trying to align segments with
-    
-    // Position pointer tip at inner edge of border (pointing to segments)
-    const pointerTipY = borderInnerEdge;
-    // Position pointer base above tip, ensuring it stays inside the border
-    // Leave some margin from the outer edge of the border
-    const marginFromOuter = 5; // Small margin from outer border edge
-    const pointerBaseY = Math.max(borderOuterEdge + marginFromOuter, pointerTipY - pointerHeight);
-
-    // Silver gradient for pointer (light at base, darker at tip)
+    // Simple, clean pointer - minimal gradient
     const pointerGradient = ctx.createLinearGradient(
       centerX, pointerBaseY,
       centerX, pointerTipY
     );
     pointerGradient.addColorStop(0, '#F5F5F5');
-    pointerGradient.addColorStop(0.5, '#C0C0C0');
-    pointerGradient.addColorStop(1, '#808080');
+    pointerGradient.addColorStop(1, '#E0E0E0');
 
-    // Draw triangle with tip pointing down toward wheel center
-    // Tip is at the inner edge of the wheel, pointing to the segment
+    // Draw triangle
     ctx.beginPath();
-    ctx.moveTo(centerX, pointerTipY); // Tip at wheel edge, pointing inward
-    ctx.lineTo(centerX - pointerWidth, pointerBaseY); // Top left corner
-    ctx.lineTo(centerX + pointerWidth, pointerBaseY); // Top right corner
+    ctx.moveTo(centerX, pointerTipY);
+    ctx.lineTo(centerX - pointerWidth, pointerBaseY);
+    ctx.lineTo(centerX + pointerWidth, pointerBaseY);
     ctx.closePath();
+    
+    // Minimal shadow
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 1;
     ctx.fillStyle = pointerGradient;
     ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
     
-    // Pointer border for definition
-    ctx.strokeStyle = '#555555';
-    ctx.lineWidth = 2;
+    // Enhanced pointer border for definition
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Add inner highlight line for 3D effect
+    ctx.beginPath();
+    ctx.moveTo(centerX - pointerWidth * 0.6, pointerBaseY + pointerHeight * 0.2);
+    ctx.lineTo(centerX, pointerTipY - pointerHeight * 0.1);
+    ctx.lineTo(centerX + pointerWidth * 0.6, pointerBaseY + pointerHeight * 0.2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1;
     ctx.stroke();
 
-    // White dot at the tip (exact pointing position at wheel edge)
+    // Enhanced red center dot at the tip (matching reference)
     ctx.beginPath();
-    ctx.arc(centerX, pointerTipY, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.arc(centerX, pointerTipY, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#DC2626'; // Red center
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     ctx.fill();
+    
+    // White outer ring around red dot
+    ctx.beginPath();
+    ctx.arc(centerX, pointerTipY, 8, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
     ctx.shadowBlur = 0;
   };
 
@@ -404,8 +459,8 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
     canvas.style.width = size + 'px';
     canvas.style.height = size + 'px';
 
-    // Redraw if spinning
-    if (isSpinning && outcomes.length > 0 && outcome) {
+    // Redraw if ready or spinning
+    if ((ready || isSpinning) && outcomes.length > 0 && outcome) {
       const ctx = canvas.getContext('2d');
       // Clear and reset transform
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -414,9 +469,9 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
       const centerX = size / 2;
       const centerY = size / 2;
       const radius = Math.min(centerX, centerY) - 40;
-      drawWheel(ctx, centerX, centerY, radius, currentRotation);
+      drawWheel(ctx, centerX, centerY, radius, currentRotation, outcomes);
     } else {
-      // Clear canvas completely if not spinning
+      // Clear canvas completely if not ready or spinning
       const ctx = canvas.getContext('2d');
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -449,6 +504,7 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
     };
   }, []);
 
+
   // Redraw wheel when rotation or state changes
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -465,8 +521,8 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
       canvas.style.height = size + 'px';
     }
 
-    // Only draw if we're spinning (have outcome and outcomes loaded)
-    if (isSpinning && outcomes.length > 0 && outcome) {
+    // Draw if we're ready (visible but not spinning) or spinning (have outcome and outcomes loaded)
+    if ((ready || isSpinning) && outcomes.length > 0 && outcome) {
       const ctx = canvas.getContext('2d');
       // Clear and reset transform
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -475,24 +531,32 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
       const centerX = size / 2;
       const centerY = size / 2;
       const radius = Math.min(centerX, centerY) - 40;
-      drawWheel(ctx, centerX, centerY, radius, rotation);
+      drawWheel(ctx, centerX, centerY, radius, rotation, outcomes);
     } else {
-      // Clear canvas completely if not spinning
+      // Clear canvas completely if not ready or spinning
       const ctx = canvas.getContext('2d');
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-  }, [outcomes, rotation, isSpinning, outcome]);
+  }, [outcomes, rotation, isSpinning, outcome, ready]);
 
-  // Don't render wheel until we have outcomes and are ready to spin
+  // Default messages if not provided
+  const defaultReadyMessage = readyMessage || 'Good luck, {userName}!';
+  const defaultReadyInstruction = readyInstruction || 'Press the buzzer to spin';
+  const defaultPlayingMessage = playingMessage || 'The wheel is spinning';
+  
+  // Replace {userName} placeholder
+  const displayReadyMessage = defaultReadyMessage.replace('{userName}', userName);
+
+  // Don't render wheel until we have outcomes
   if (!outcomes.length || !outcome) {
     return (
       <div className="flex flex-col items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-6xl font-bold text-white mb-3 drop-shadow-lg">
-            Good luck, {userName}!
+          <h2 className="text-6xl font-bold mb-3 drop-shadow-lg" style={{ color: textColorPrimary || '#111827' }}>
+            {displayReadyMessage}
           </h2>
-          <p className="text-3xl text-white/90 font-light tracking-wide">
+          <p className="text-3xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             Preparing the wheel...
           </p>
         </div>
@@ -502,24 +566,30 @@ function Wheel({ userName, outcome, outcomes, onComplete }) {
 
   return (
     <div className="flex flex-col items-center justify-center h-full relative">
-      <div className="text-center mb-8 relative z-10">
-        <h2 className="text-6xl font-bold text-white mb-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] animate-pulse">
-          Good luck, {userName}!
+      <div className="text-center mb-6 sm:mb-8 relative z-10">
+        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-light mb-3 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
+          {displayReadyMessage}
         </h2>
-        <p className="text-3xl text-white/90 font-light tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-          The wheel is spinning...
-        </p>
+        {ready ? (
+          <p className="text-xl sm:text-2xl lg:text-3xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+            {defaultReadyInstruction}
+          </p>
+        ) : (
+          <p className="text-xl sm:text-2xl lg:text-3xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+            {defaultPlayingMessage}
+          </p>
+        )}
       </div>
       
       <div className="relative z-10">
         <canvas
           ref={canvasRef}
-          className="max-w-full max-h-[80vh]"
+          className="max-w-full max-h-[75vh] sm:max-h-[80vh]"
           style={{
-            filter: 'drop-shadow(0 30px 60px rgba(0, 0, 0, 0.8))',
-            transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
-            opacity: isSpinning ? 1 : 0,
-            transform: isSpinning ? 'scale(1)' : 'scale(0.95)',
+            filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.1))',
+            transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+            opacity: (ready || isSpinning) ? 1 : 0,
+            transform: (ready || isSpinning) ? 'scale(1)' : 'scale(0.98)',
             backgroundColor: 'transparent'
           }}
         />

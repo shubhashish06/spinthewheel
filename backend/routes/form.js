@@ -1,7 +1,7 @@
 import { pool } from '../database/init.js';
 import { selectOutcome } from '../utils/probability.js';
 import { broadcastToSignage } from '../websocket/server.js';
-import { normalizeEmail, normalizePhone } from '../utils/validation.js';
+import { normalizeEmail, normalizePhone, generateRedemptionCode } from '../utils/validation.js';
 import { activeTokens } from './tokens.js';
 
 // Helper function to format time window in a user-friendly way
@@ -305,6 +305,19 @@ export async function submitForm(req, res) {
 
     console.log(`📝 Session ${sessionId} created for user ${name} - status: pending (waiting for buzzer)`);
 
+    // Broadcast to signage to show the wheel (ready state, not spinning yet)
+    console.log(`📡 Broadcasting game_ready to signage: ${signageId}`);
+    broadcastToSignage(signageId, {
+      type: 'game_ready',
+      sessionId: sessionId,
+      userName: name,
+      outcome: {
+        id: outcome.id,
+        label: outcome.label,
+        is_negative: outcome.is_negative || false
+      }
+    });
+
     res.json({
       success: true,
       sessionId,
@@ -603,8 +616,9 @@ export async function verifyRedemption(req, res) {
 
     const redemptionRecord = redemption.rows[0];
 
-    // Verify email/phone matches
-    const emailMatch = redemptionRecord.user_email.toLowerCase() === normalizedEmail;
+    // Verify email/phone matches (both already normalized in database)
+    // Ensure comparison is consistent - redemption records store normalized email/phone
+    const emailMatch = redemptionRecord.user_email === normalizedEmail;
     const phoneMatch = redemptionRecord.user_phone === normalizedPhone;
 
     if (!emailMatch || !phoneMatch) {
@@ -691,5 +705,209 @@ export async function getSession(req, res) {
       ? 'Internal server error' 
       : (error.message || 'Internal server error');
     res.status(500).json({ error: message });
+  }
+}
+
+/**
+ * Mark session as completed (HTTP fallback when WebSocket fails)
+ * POST /api/session/:sessionId/complete
+ */
+export async function completeSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+    console.log(`✅ Marking session as completed via HTTP: ${sessionId}`);
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Session ID is required' });
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(sessionId)) {
+      return res.status(400).json({ error: 'Invalid session ID format' });
+    }
+
+    // Get session details to verify it exists and is in playing state
+    // Use JOIN (not LEFT JOIN) to ensure user and outcome exist - prevents data inconsistency
+    const sessionResult = await pool.query(
+      `SELECT 
+        gs.id,
+        gs.status,
+        gs.signage_id,
+        u.name,
+        u.email_normalized,
+        u.phone_normalized,
+        u.email,
+        u.phone,
+        go.id as outcome_id,
+        go.label as outcome_label,
+        go.is_negative
+      FROM game_sessions gs
+      JOIN users u ON gs.user_id = u.id
+      JOIN game_outcomes go ON gs.outcome_id = go.id
+      WHERE gs.id = $1`,
+      [sessionId]
+    );
+
+    if (sessionResult.rows.length === 0) {
+      console.error(`❌ Session not found: ${sessionId}`);
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const session = sessionResult.rows[0];
+    
+    // Validate required fields to prevent data inconsistency
+    if (!session.outcome_id || !session.outcome_label) {
+      console.error(`❌ Invalid session data for ${sessionId}: missing outcome`);
+      
+      // ✅ Try to get outcome from session's outcome_id if it exists
+      try {
+        const outcomeCheck = await pool.query(
+          'SELECT id, label FROM game_outcomes WHERE id = (SELECT outcome_id FROM game_sessions WHERE id = $1)',
+          [sessionId]
+        );
+        
+        if (outcomeCheck.rows.length > 0) {
+          // Use the outcome from the database
+          session.outcome_id = outcomeCheck.rows[0].id;
+          session.outcome_label = outcomeCheck.rows[0].label;
+          console.log(`✅ Recovered outcome data for session ${sessionId}: ${session.outcome_label}`);
+        } else {
+          // ✅ Still mark as completed even without outcome (better than stuck)
+          await pool.query(
+            'UPDATE game_sessions SET status = $1 WHERE id = $2',
+            ['completed', sessionId]
+          );
+          return res.json({ 
+            success: true, 
+            message: 'Session completed but outcome data missing',
+            warning: 'Outcome information not available',
+            sessionId: session.id
+          });
+        }
+      } catch (recoveryError) {
+        console.error('Error recovering outcome data:', recoveryError);
+        // ✅ Still mark as completed even if recovery fails
+        await pool.query(
+          'UPDATE game_sessions SET status = $1 WHERE id = $2',
+          ['completed', sessionId]
+        );
+        return res.json({ 
+          success: true, 
+          message: 'Session completed but outcome data unavailable',
+          warning: 'Outcome information could not be recovered',
+          sessionId: session.id
+        });
+      }
+    }
+    
+    // Only update if status is 'playing' (prevent duplicate updates)
+    if (session.status === 'completed') {
+      console.log(`ℹ️  Session ${sessionId} already completed`);
+      return res.json({ 
+        success: true, 
+        message: 'Session already completed',
+        alreadyCompleted: true
+      });
+    }
+
+    if (session.status !== 'playing') {
+      console.warn(`⚠️  Session ${sessionId} is not in playing state (current: ${session.status})`);
+      // Still allow completion if it's pending (edge case)
+      if (session.status !== 'pending') {
+        return res.status(400).json({ 
+          error: `Session cannot be completed. Current status: ${session.status}` 
+        });
+      }
+    }
+
+    // Update session status to completed
+    await pool.query(
+      'UPDATE game_sessions SET status = $1 WHERE id = $2',
+      ['completed', sessionId]
+    );
+
+    console.log(`✅ Session ${sessionId} marked as completed via HTTP`);
+
+    // Create redemption record for non-negative outcomes
+    // Use same logic and normalization as createRedemptionRecord in websocket/server.js
+    if (!session.is_negative) {
+      try {
+        // Use normalized email/phone from users table for consistency
+        // Fallback to normalized raw email/phone if normalized columns are NULL (for older records)
+        const userEmail = session.email_normalized || (session.email ? session.email.toLowerCase().trim() : '');
+        const userPhone = session.phone_normalized || (session.phone ? session.phone.replace(/\D/g, '') : '');
+        
+        if (!userEmail || !userPhone) {
+          console.error(`❌ Invalid user data for session ${sessionId}: missing email or phone`);
+          // Don't fail the request, but log the error
+        } else {
+          const redemptionCode = generateRedemptionCode();
+          
+          await pool.query(`
+            INSERT INTO redemptions (session_id, user_email, user_phone, outcome_id, outcome_label, redemption_code)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (session_id) DO UPDATE SET
+              user_email = EXCLUDED.user_email,
+              user_phone = EXCLUDED.user_phone,
+              outcome_id = EXCLUDED.outcome_id,
+              outcome_label = EXCLUDED.outcome_label
+          `, [
+            sessionId,
+            userEmail,
+            userPhone,
+            session.outcome_id,
+            session.outcome_label,
+            redemptionCode
+          ]);
+
+          console.log(`🎫 Redemption record created for session ${sessionId} - Code: ${redemptionCode}`);
+        }
+      } catch (error) {
+        console.error('Error creating redemption record:', error);
+        // Don't fail the request if redemption creation fails
+      }
+    }
+
+    res.json({
+      success: true,
+      sessionId: session.id,
+      message: 'Session marked as completed'
+    });
+  } catch (error) {
+    console.error('❌ Complete session error:', error);
+    console.error('Error stack:', error.stack);
+    const message = process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : (error.message || 'Internal server error');
+    res.status(500).json({ error: message });
+  }
+}
+
+/**
+ * Cleanup stuck sessions (mark sessions as completed if they've been playing too long)
+ * POST /api/admin/cleanup-sessions
+ */
+export async function cleanupStuckSessions(req, res) {
+  try {
+    // Mark sessions as completed if they've been playing for more than 2 minutes
+    const result = await pool.query(`
+      UPDATE game_sessions 
+      SET status = 'completed'
+      WHERE status = 'playing' 
+      AND created_at < NOW() - INTERVAL '2 minutes'
+      RETURNING id, created_at
+    `);
+    
+    console.log(`🧹 Cleaned up ${result.rows.length} stuck sessions`);
+    
+    res.json({ 
+      success: true,
+      cleaned: result.rows.length,
+      sessions: result.rows.map(row => ({ id: row.id, created_at: row.created_at }))
+    });
+  } catch (error) {
+    console.error('Error cleaning up stuck sessions:', error);
+    res.status(500).json({ error: 'Failed to cleanup sessions' });
   }
 }

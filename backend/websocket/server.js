@@ -34,18 +34,46 @@ export function setupWebSocket(wss) {
         const data = JSON.parse(message.toString());
         
         if (data.type === 'game_complete') {
+          // ✅ Validate sessionId before processing
+          if (!data.sessionId) {
+            console.error('❌ game_complete message missing sessionId');
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'sessionId required for game_complete' 
+            }));
+            return;
+          }
+          
+          // ✅ Validate UUID format
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (!uuidRegex.test(data.sessionId)) {
+            console.error('❌ Invalid sessionId format:', data.sessionId);
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'Invalid sessionId format' 
+            }));
+            return;
+          }
+          
           // Update session status to completed (only after results are shown on screen)
           try {
-            await pool.query(
+            const updateResult = await pool.query(
               'UPDATE game_sessions SET status = $1 WHERE id = $2',
               ['completed', data.sessionId]
             );
-            console.log(`✅ Session ${data.sessionId} marked as completed`);
+            
+            if (updateResult.rowCount === 0) {
+              console.warn(`⚠️  Session ${data.sessionId} not found for completion`);
+            } else {
+              console.log(`✅ Session ${data.sessionId} marked as completed`);
 
-            // Create redemption record for non-negative outcomes
-            await createRedemptionRecord(data.sessionId);
+              // Create redemption record for non-negative outcomes
+              await createRedemptionRecord(data.sessionId);
+            }
           } catch (error) {
             console.error('Error updating session status:', error);
+            // ✅ Try HTTP fallback or log for manual cleanup
+            console.error(`❌ Failed to complete session ${data.sessionId} via WebSocket`);
           }
         } else if (data.type === 'ping') {
           ws.send(JSON.stringify({ type: 'pong' }));
@@ -75,12 +103,19 @@ export function setupWebSocket(wss) {
 
 /**
  * Create redemption record for completed game sessions with non-negative outcomes
+ * Uses normalized email/phone from users table to ensure data consistency
  */
 async function createRedemptionRecord(sessionId) {
   try {
+    // Use same query structure as completeSession to ensure data alignment
+    // JOIN ensures user and outcome exist (no NULL values)
     const session = await pool.query(`
       SELECT 
         gs.id,
+        gs.status,
+        gs.signage_id,
+        u.email_normalized,
+        u.phone_normalized,
         u.email,
         u.phone,
         go.id as outcome_id,
@@ -92,33 +127,56 @@ async function createRedemptionRecord(sessionId) {
       WHERE gs.id = $1 AND gs.status = 'completed'
     `, [sessionId]);
 
-    if (session.rows.length > 0) {
-      const outcome = session.rows[0];
-      
-      // Only create redemption for non-negative outcomes
-      if (outcome.is_negative) {
-        console.log(`⏭️  Skipping redemption code generation for negative outcome: ${outcome.outcome_label} (session ${sessionId})`);
-        return; // Exit early for negative outcomes - no redemption code needed
-      }
-      
-      // Generate redemption code only for non-negative outcomes
-      const redemptionCode = generateRedemptionCode();
-      
-      await pool.query(`
-        INSERT INTO redemptions (session_id, user_email, user_phone, outcome_id, outcome_label, redemption_code)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (session_id) DO NOTHING
-      `, [
-        sessionId,
-        outcome.email?.toLowerCase().trim() || '',
-        outcome.phone?.replace(/\D/g, '') || '',
-        outcome.outcome_id,
-        outcome.outcome_label,
-        redemptionCode
-      ]);
-
-      console.log(`🎫 Redemption record created for session ${sessionId} - Code: ${redemptionCode}`);
+    if (session.rows.length === 0) {
+      console.warn(`⚠️  Session ${sessionId} not found or not completed - skipping redemption creation`);
+      return;
     }
+
+    const sessionData = session.rows[0];
+    
+    // Validate required fields
+    if (!sessionData.outcome_id || !sessionData.outcome_label) {
+      console.error(`❌ Invalid session data for ${sessionId}: missing outcome`);
+      return;
+    }
+    
+    // Only create redemption for non-negative outcomes
+    if (sessionData.is_negative) {
+      console.log(`⏭️  Skipping redemption code generation for negative outcome: ${sessionData.outcome_label} (session ${sessionId})`);
+      return; // Exit early for negative outcomes - no redemption code needed
+    }
+    
+    // Use normalized email/phone from users table for consistency
+    // Fallback to normalized raw email/phone if normalized columns are NULL (for older records)
+    const userEmail = sessionData.email_normalized || (sessionData.email ? sessionData.email.toLowerCase().trim() : '');
+    const userPhone = sessionData.phone_normalized || (sessionData.phone ? sessionData.phone.replace(/\D/g, '') : '');
+    
+    if (!userEmail || !userPhone) {
+      console.error(`❌ Invalid user data for session ${sessionId}: missing email or phone`);
+      return;
+    }
+    
+    // Generate redemption code only for non-negative outcomes
+    const redemptionCode = generateRedemptionCode();
+    
+    await pool.query(`
+      INSERT INTO redemptions (session_id, user_email, user_phone, outcome_id, outcome_label, redemption_code)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (session_id) DO UPDATE SET
+        user_email = EXCLUDED.user_email,
+        user_phone = EXCLUDED.user_phone,
+        outcome_id = EXCLUDED.outcome_id,
+        outcome_label = EXCLUDED.outcome_label
+    `, [
+      sessionId,
+      userEmail,
+      userPhone,
+      sessionData.outcome_id,
+      sessionData.outcome_label,
+      redemptionCode
+    ]);
+
+    console.log(`🎫 Redemption record created for session ${sessionId} - Code: ${redemptionCode}`);
   } catch (error) {
     console.error('Error creating redemption record:', error);
     // Don't throw - redemption creation failure shouldn't break game completion

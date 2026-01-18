@@ -4,7 +4,13 @@ function OutcomesManager({ signageId }) {
   const [outcomes, setOutcomes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ label: '', probability_weight: 10 ,is_negative:false});
+  const [formData, setFormData] = useState({ 
+    label: '', 
+    probability_weight: 10,
+    is_negative: false,
+    text_color: '',
+    background_color: ''
+  });
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [bulkEditMode, setBulkEditMode] = useState(false);
@@ -56,7 +62,13 @@ function OutcomesManager({ signageId }) {
       if (response.ok) {
         loadOutcomes();
         setShowForm(false);
-        setFormData({ label: '', probability_weight: 10,is_negative:false });
+        setFormData({ 
+          label: '', 
+          probability_weight: 10,
+          is_negative: false,
+          text_color: '',
+          background_color: ''
+        });
       }
     } catch (err) {
       console.error('Failed to create outcome:', err);
@@ -140,6 +152,29 @@ function OutcomesManager({ signageId }) {
       showMessage('error', 'Failed to update outcome');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdateColors = async (id, textColor, backgroundColor) => {
+    try {
+      const response = await fetch(`${window.location.origin}/api/outcomes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text_color: textColor || null,
+          background_color: backgroundColor || null
+        })
+      });
+
+      if (response.ok) {
+        loadOutcomes();
+      } else {
+        const error = await response.json();
+        showMessage('error', error.error || 'Failed to update colors');
+      }
+    } catch (err) {
+      console.error('Failed to update colors:', err);
+      showMessage('error', 'Failed to update colors');
     }
   };
 
@@ -297,6 +332,56 @@ function OutcomesManager({ signageId }) {
                 Higher weight = higher probability. Total weight: {totalWeight}
               </p>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Background Color
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={formData.background_color || '#DC2626'}
+                    onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
+                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={formData.background_color || ''}
+                    onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
+                    placeholder="#DC2626"
+                    pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty to use default
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Text Color
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={formData.text_color || '#FFFFFF'}
+                    onChange={(e) => setFormData({ ...formData, text_color: e.target.value })}
+                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={formData.text_color || ''}
+                    onChange={(e) => setFormData({ ...formData, text_color: e.target.value })}
+                    placeholder="#FFFFFF"
+                    pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty to use default
+                </p>
+              </div>
+            </div>
             <div>
               <label className="flex items-center space-x-2">
                 <input
@@ -331,6 +416,9 @@ function OutcomesManager({ signageId }) {
                 Label
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Colors
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Weight
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -347,7 +435,7 @@ function OutcomesManager({ signageId }) {
           <tbody className="bg-white divide-y divide-gray-200">
             {outcomes.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
                   No outcomes found
                 </td>
               </tr>
@@ -369,8 +457,46 @@ function OutcomesManager({ signageId }) {
                 
                 return (
                   <tr key={outcome.id} className={bulkEditMode ? 'bg-yellow-50' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => handleToggleNegative(outcome.id, outcome.is_negative)}
+                        disabled={saving}
+                        className={`px-3 py-1 rounded text-xs font-semibold ${
+                          outcome.is_negative
+                            ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                            : 'bg-green-100 text-green-800 hover:bg-green-200'
+                        } disabled:opacity-50`}
+                        title={outcome.is_negative ? 'Click to mark as normal' : 'Click to mark as negative'}
+                      >
+                        {outcome.is_negative ? 'Negative' : 'Normal'}
+                      </button>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {outcome.label}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <label className="text-xs text-gray-500">BG:</label>
+                          <input
+                            type="color"
+                            value={outcome.background_color || '#DC2626'}
+                            onChange={(e) => handleUpdateColors(outcome.id, outcome.text_color, e.target.value)}
+                            className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                            title="Background color"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <label className="text-xs text-gray-500">Text:</label>
+                          <input
+                            type="color"
+                            value={outcome.text_color || '#FFFFFF'}
+                            onChange={(e) => handleUpdateColors(outcome.id, e.target.value, outcome.background_color)}
+                            className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                            title="Text color"
+                          />
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {bulkEditMode ? (
