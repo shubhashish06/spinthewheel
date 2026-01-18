@@ -4,6 +4,7 @@ import Wheel from './components/Wheel';
 
 const STATES = {
   IDLE: 'idle',
+  READY: 'ready',
   PLAYING: 'playing',
   RESULT: 'result'
 };
@@ -15,8 +16,21 @@ function App() {
   const [currentGame, setCurrentGame] = useState(null);
   const [outcomes, setOutcomes] = useState([]);
   const [backgroundConfig, setBackgroundConfig] = useState({
-    type: 'gradient',
-    colors: ['#991b1b', '#000000', '#991b1b']
+    type: 'solid',
+    color: '#ffffff'
+  });
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [textConfig, setTextConfig] = useState({
+    idleHeading: 'Spin the Wheel',
+    idleSubtitle: 'Scan to play',
+    readyMessage: 'Good luck, {userName}!',
+    readyInstruction: 'Press the buzzer to spin',
+    playingMessage: 'The wheel is spinning',
+    resultWinMessage: 'You Won',
+    footerText: 'Use your phone camera to scan',
+    textColorPrimary: '#111827',
+    textColorSecondary: '#4B5563',
+    textColorTertiary: '#6B7280'
   });
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -26,46 +40,58 @@ function App() {
   const currentGameRef = useRef(null);
 
   // Generate QR code with token (extracted to be reusable)
-  const generateQRCode = async () => {
+  const generateQRCode = async (signageIdParam = null) => {
     try {
       const baseUrl = window.location.origin;
-      const id = signageId;
+      // Use provided parameter or fall back to state, then to URL param, then to default
+      const id = signageIdParam || signageId || (() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('id') || 'DEFAULT';
+      })();
+      
+      if (!id || id === '') {
+        console.error('❌ No signage ID available for QR code generation');
+        return;
+      }
+      
+      console.log(`🔑 Generating token for signage: ${id}`);
       
       // Generate a token for this signage
       const tokenRes = await fetch(`${baseUrl}/api/token/generate?signageId=${id}`);
+      
+      if (!tokenRes.ok) {
+        const errorText = await tokenRes.text();
+        console.error(`❌ Token generation failed (${tokenRes.status}):`, errorText);
+        throw new Error(`Token generation failed: ${tokenRes.status}`);
+      }
+      
       const tokenData = await tokenRes.json();
+      console.log('📦 Token response:', tokenData);
       
       if (tokenData.token) {
         // Include token in QR code URL
         const formUrl = `${baseUrl}/play/?id=${id}&token=${tokenData.token}`;
+        console.log(`✅ Generated QR code URL with token: ${formUrl}`);
+        
         QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
-          .then(url => setQrCodeUrl(url))
+          .then(url => {
+            console.log('✅ QR code generated successfully');
+            setQrCodeUrl(url);
+          })
           .catch(err => {
-            console.error('QR code generation error:', err);
+            console.error('❌ QR code generation error:', err);
             setQrCodeUrl('');
           });
       } else {
-        console.error('Failed to generate token:', tokenData);
-        // Fallback to URL without token (less secure)
-        const formUrl = `${baseUrl}/play/?id=${id}`;
-        QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
-          .then(url => setQrCodeUrl(url))
-          .catch(err => {
-            console.error('QR code generation error:', err);
-            setQrCodeUrl('');
-          });
+        console.error('❌ No token in response:', tokenData);
+        throw new Error('Token not received from API');
       }
     } catch (err) {
-      console.error('Token generation error:', err);
-      // Fallback to URL without token
-      const baseUrl = window.location.origin;
-      const formUrl = `${baseUrl}/play/?id=${signageId}`;
-      QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
-        .then(url => setQrCodeUrl(url))
-        .catch(qrErr => {
-          console.error('QR code generation error:', qrErr);
-          setQrCodeUrl('');
-        });
+      console.error('❌ Token generation error:', err);
+      // Don't fallback to URL without token - show error instead
+      setQrCodeUrl('');
+      // Optionally show error message to user
+      console.error('Failed to generate QR code with token. Please check backend connection.');
     }
   };
 
@@ -75,11 +101,13 @@ function App() {
     const id = params.get('id') || 'DEFAULT';
     setSignageId(id);
 
-    // Generate initial QR code
-    generateQRCode();
+    // Generate initial QR code with the ID parameter
+    generateQRCode(id);
 
     // Regenerate token and QR code every 10 minutes (tokens expire in 15 minutes)
-    tokenRefreshIntervalRef.current = setInterval(generateQRCode, 10 * 60 * 1000);
+    tokenRefreshIntervalRef.current = setInterval(() => {
+      generateQRCode();
+    }, 10 * 60 * 1000);
 
     // Load signage config
     loadSignageConfig(id);
@@ -88,7 +116,26 @@ function App() {
     // Connect WebSocket
     connectWebSocket(id);
 
+    // ✅ Complete any active session on page unload/close
+    const handleBeforeUnload = () => {
+      if (currentGameRef.current?.sessionId && stateRef.current === STATES.PLAYING) {
+        // Try to complete session before page closes using sendBeacon (more reliable than fetch)
+        const sessionId = currentGameRef.current.sessionId;
+        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+        navigator.sendBeacon(
+          `${window.location.origin}/api/session/${sessionId}/complete`,
+          blob
+        );
+        console.log(`📤 Attempted to complete session ${sessionId} on page unload`);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload); // For mobile browsers
+
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
       if (wsRef.current) {
         wsRef.current.close();
       }
@@ -118,7 +165,38 @@ function App() {
     try {
       const response = await fetch(`${window.location.origin}/api/signage/${id}`);
       const data = await response.json();
-      setOutcomes(data.outcomes || []);
+      // Ensure outcomes are sorted consistently (by probability_weight DESC, then by id for stability)
+      const sortedOutcomes = (data.outcomes || []).sort((a, b) => {
+        if (b.probability_weight !== a.probability_weight) {
+          return b.probability_weight - a.probability_weight;
+        }
+        // If weights are equal, sort by id for consistent ordering
+        return (a.id || '').localeCompare(b.id || '');
+      });
+      setOutcomes(sortedOutcomes);
+      
+      // Load logo URL if available
+      if (data.logo_url) {
+        setLogoUrl(data.logo_url);
+      } else {
+        setLogoUrl(null);
+      }
+      
+      // Load text config if available
+      if (data.text_config && typeof data.text_config === 'object') {
+        setTextConfig({
+          idleHeading: data.text_config.idleHeading || 'Spin the Wheel',
+          idleSubtitle: data.text_config.idleSubtitle || 'Scan to play',
+          readyMessage: data.text_config.readyMessage || 'Good luck, {userName}!',
+          readyInstruction: data.text_config.readyInstruction || 'Press the buzzer to spin',
+          playingMessage: data.text_config.playingMessage || 'The wheel is spinning',
+          resultWinMessage: data.text_config.resultWinMessage || 'You Won',
+          footerText: data.text_config.footerText || 'Use your phone camera to scan',
+          textColorPrimary: data.text_config.textColorPrimary || '#111827',
+          textColorSecondary: data.text_config.textColorSecondary || '#4B5563',
+          textColorTertiary: data.text_config.textColorTertiary || '#6B7280'
+        });
+      }
       
       // Load background config if available
       if (data.background_config) {
@@ -213,8 +291,8 @@ function App() {
   const handleWebSocketMessage = (message) => {
     console.log('📨 WebSocket message received:', message);
     
-    if (message.type === 'game_start') {
-      console.log('🎮 Starting game:', {
+    if (message.type === 'game_ready') {
+      console.log('🎯 Game ready - showing wheel:', {
         sessionId: message.sessionId,
         userName: message.userName,
         outcome: message.outcome
@@ -225,6 +303,24 @@ function App() {
         userName: message.userName,
         outcome: message.outcome
       });
+      setState(STATES.READY);
+      stateRef.current = STATES.READY;
+    } else if (message.type === 'game_start') {
+      console.log('🎮 Starting game - spinning wheel:', {
+        sessionId: message.sessionId,
+        userName: message.userName,
+        outcome: message.outcome
+      });
+      
+      // Ensure we have the game data
+      if (!currentGame || currentGame.sessionId !== message.sessionId) {
+        setCurrentGame({
+          sessionId: message.sessionId,
+          userName: message.userName,
+          outcome: message.outcome
+        });
+      }
+      
       setState(STATES.PLAYING);
       stateRef.current = STATES.PLAYING;
     } else if (message.type === 'background_update') {
@@ -234,6 +330,77 @@ function App() {
 
   const handleWheelComplete = () => {
     console.log('🏁 Wheel animation complete, showing result for:', currentGame);
+    
+    // Store sessionId separately to ensure it persists even if currentGame is cleared
+    const sessionIdToComplete = currentGame?.sessionId;
+    
+    if (!sessionIdToComplete) {
+      console.error('❌ ERROR: No sessionId available when wheel completed!', currentGame);
+      return; // ✅ Early return to prevent silent failures
+    }
+    
+    // Mark session as completed immediately when wheel finishes (not after 10 seconds)
+    // This ensures mobile form gets results even if WebSocket disconnects
+    const markSessionComplete = async (retryCount = 0) => {
+      const maxRetries = 3; // ✅ Increased from 1 to 3 retries
+      
+      // Try WebSocket first (faster)
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && sessionIdToComplete) {
+        try {
+          wsRef.current.send(JSON.stringify({
+            type: 'game_complete',
+            sessionId: sessionIdToComplete
+          }));
+          console.log('✅ Game marked as complete via WebSocket:', sessionIdToComplete);
+          return true;
+        } catch (error) {
+          console.error('❌ Error sending game_complete via WebSocket:', error);
+        }
+      }
+      
+      // Fallback to HTTP API if WebSocket fails
+      if (sessionIdToComplete) {
+        try {
+          const response = await fetch(`${window.location.origin}/api/session/${sessionIdToComplete}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            console.log('✅ Game marked as complete via HTTP fallback:', sessionIdToComplete);
+            return true;
+          } else {
+            const errorText = await response.text();
+            console.error('❌ HTTP fallback failed:', response.status, errorText);
+            // ✅ Retry with exponential backoff
+            if (retryCount < maxRetries) {
+              const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+              setTimeout(() => markSessionComplete(retryCount + 1), delay);
+              return false;
+            } else {
+              console.error('❌ Failed to complete session after all retries:', sessionIdToComplete);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error marking session complete via HTTP:', error);
+          // ✅ Retry with exponential backoff
+          if (retryCount < maxRetries) {
+            const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+            setTimeout(() => markSessionComplete(retryCount + 1), delay);
+            return false;
+          } else {
+            console.error('❌ Failed to complete session after all retries:', sessionIdToComplete);
+          }
+        }
+      }
+      
+      return false;
+    };
+    
+    // Mark as completed immediately
+    markSessionComplete();
     
     // Smooth transition: fade out wheel, then show result
     setTimeout(() => {
@@ -246,16 +413,8 @@ function App() {
       stateRef.current = STATES.RESULT;
       
       // Step 2: after showing the result for 10 seconds,
-      // notify backend, return to idle, and refresh QR for next player
+      // return to idle and refresh QR for next player
       setTimeout(() => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && currentGame) {
-          wsRef.current.send(JSON.stringify({
-            type: 'game_complete',
-            sessionId: currentGame.sessionId
-          }));
-          console.log('✅ Game marked as complete:', currentGame.sessionId);
-        }
-
         console.log('🔄 Returning to idle state');
         setState(STATES.IDLE);
         stateRef.current = STATES.IDLE;
@@ -271,25 +430,25 @@ function App() {
   const getBackgroundStyle = () => {
     if (!backgroundConfig || !backgroundConfig.type) {
       return {
-        background: 'linear-gradient(to bottom right, #991b1b, #000000, #991b1b)'
+        background: '#ffffff'
       };
     }
 
     if (backgroundConfig.type === 'gradient') {
-      const colors = backgroundConfig.colors || ['#991b1b', '#000000', '#991b1b'];
+      const colors = backgroundConfig.colors || ['#ffffff', '#f5f5f5', '#ffffff'];
       return {
         background: `linear-gradient(to bottom right, ${colors.join(', ')})`
       };
     } else if (backgroundConfig.type === 'solid') {
       return {
-        background: backgroundConfig.color || '#991b1b'
+        background: backgroundConfig.color || '#ffffff'
       };
     } else if (backgroundConfig.type === 'image') {
       const imageUrl = backgroundConfig.url || '';
       if (!imageUrl || imageUrl.trim() === '') {
         // Fallback if no URL provided
         return {
-          background: 'linear-gradient(to bottom right, #991b1b, #000000, #991b1b)'
+          background: '#ffffff'
         };
       }
       // Clean and validate URL
@@ -299,14 +458,48 @@ function App() {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        backgroundColor: '#000000' // Fallback color while image loads
+        backgroundColor: '#ffffff' // Fallback color while image loads
       };
     }
     // Default fallback
     return {
-      background: 'linear-gradient(to bottom right, #991b1b, #000000, #991b1b)'
+      background: '#ffffff'
     };
   };
+
+  if (state === STATES.READY) {
+    return (
+      <div 
+        className="h-screen w-screen flex items-center justify-center relative overflow-hidden transition-all duration-500"
+        style={getBackgroundStyle()}
+      >
+        {logoUrl && (
+          <div className="absolute top-6 right-6 z-50">
+            <img 
+              src={logoUrl} 
+              alt="Logo" 
+              className="max-h-16 max-w-32 object-contain opacity-90"
+              onError={(e) => {
+                console.error('Failed to load logo:', logoUrl);
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+        <Wheel
+          userName={currentGame?.userName || 'Player'}
+          outcome={currentGame?.outcome}
+          outcomes={outcomes}
+          onComplete={handleWheelComplete}
+          ready={true}
+          readyMessage={textConfig.readyMessage}
+          readyInstruction={textConfig.readyInstruction}
+          textColorPrimary={textConfig.textColorPrimary}
+          textColorSecondary={textConfig.textColorSecondary}
+        />
+      </div>
+    );
+  }
 
   if (state === STATES.PLAYING) {
     return (
@@ -314,11 +507,28 @@ function App() {
         className="h-screen w-screen flex items-center justify-center relative overflow-hidden transition-all duration-500"
         style={getBackgroundStyle()}
       >
+        {logoUrl && (
+          <div className="absolute top-6 right-6 z-50">
+            <img 
+              src={logoUrl} 
+              alt="Logo" 
+              className="max-h-16 max-w-32 object-contain opacity-90"
+              onError={(e) => {
+                console.error('Failed to load logo:', logoUrl);
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
         <Wheel
           userName={currentGame?.userName || 'Player'}
           outcome={currentGame?.outcome}
           outcomes={outcomes}
           onComplete={handleWheelComplete}
+          ready={false}
+          playingMessage={textConfig.playingMessage}
+          textColorPrimary={textConfig.textColorPrimary}
+          textColorSecondary={textConfig.textColorSecondary}
         />
       </div>
     );
@@ -329,22 +539,37 @@ function App() {
     
     return (
       <div 
-        className="h-screen w-screen flex items-center justify-center animate-fadeIn"
+        className="h-screen w-screen flex items-center justify-center relative"
         style={getBackgroundStyle()}
       >
-        <div className="text-center text-white animate-slideUp">
+        {logoUrl && (
+          <div className="absolute top-6 right-6 z-50">
+            <img 
+              src={logoUrl} 
+              alt="Logo" 
+              className="max-h-16 max-w-32 object-contain opacity-90"
+              onError={(e) => {
+                console.error('Failed to load logo:', logoUrl);
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+        <div className="text-center px-8 max-w-6xl w-full space-y-10 sm:space-y-12" style={{ color: textConfig.textColorPrimary || '#111827' }}>
           {!isNegative && (
-            <div className="text-8xl mb-8 animate-bounce drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">🎉</div>
+            <div className="text-7xl sm:text-8xl lg:text-9xl animate-fadeIn">🎉</div>
           )}
-          <h1 className="text-6xl font-bold mb-4 animate-fadeIn drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
-            {currentGame?.userName}
-          </h1>
-          {!isNegative && (
-            <h2 className="text-5xl font-semibold mb-8 animate-fadeIn drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
-              You Won:
-            </h2>
-          )}
-          <div className="text-7xl font-bold bg-white/20 rounded-2xl px-12 py-8 inline-block animate-scaleIn drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]" style={{ animationDelay: '0.6s', animationFillMode: 'both' }}>
+          <div className="space-y-4 sm:space-y-6">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-light tracking-tight animate-fadeIn" style={{ animationDelay: '0.1s', color: textConfig.textColorPrimary || '#111827' }}>
+              {currentGame?.userName}
+            </h1>
+            {!isNegative && (
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-light animate-fadeIn" style={{ animationDelay: '0.2s', color: textConfig.textColorSecondary || '#4B5563' }}>
+                {textConfig.resultWinMessage}
+              </h2>
+            )}
+          </div>
+          <div className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-light animate-scaleIn" style={{ animationDelay: '0.3s', color: textConfig.textColorPrimary || '#111827' }}>
             {currentGame?.outcome?.label || 'Congratulations!'}
           </div>
         </div>
@@ -352,27 +577,48 @@ function App() {
     );
   }
 
-  // IDLE state
+  // IDLE state - Apple-inspired minimalist hero section
   return (
     <div 
-      className="h-screen w-screen flex items-center justify-center p-8"
+      className="h-screen w-screen flex flex-col items-center justify-center relative"
       style={getBackgroundStyle()}
     >
-      <div className="max-w-4xl w-full text-center">
-        <h1 className="text-7xl font-bold text-white mb-4 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">Spin the Wheel!</h1>
-        <p className="text-3xl text-white/90 mb-12 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Scan the QR code to play</p>
+      {logoUrl && (
+        <div className="absolute top-6 right-6 z-50">
+          <img 
+            src={logoUrl} 
+            alt="Logo" 
+            className="max-h-16 max-w-32 object-contain opacity-90"
+            onError={(e) => {
+              console.error('Failed to load logo:', logoUrl);
+              e.target.style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+      <div className="max-w-5xl w-full text-center px-8 space-y-16">
+        {/* Hero text */}
+        <div className="space-y-6 animate-fadeIn">
+          <h1 className="text-7xl sm:text-8xl lg:text-9xl font-light tracking-tight leading-[1.1]" style={{ color: textConfig.textColorPrimary || '#111827' }}>
+            {textConfig.idleHeading}
+          </h1>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-light tracking-wide" style={{ color: textConfig.textColorSecondary || '#4B5563' }}>
+            {textConfig.idleSubtitle}
+          </p>
+        </div>
         
+        {/* QR Code */}
         {qrCodeUrl && (
-          <div className="flex justify-center mb-8">
-            <div className="bg-white p-6 rounded-2xl shadow-2xl">
-              <img src={qrCodeUrl} alt="QR Code" className="w-80 h-80" />
+          <div className="flex justify-center animate-scaleIn" style={{ animationDelay: '0.2s' }}>
+            <div className="bg-white p-6 sm:p-8 lg:p-10 rounded-2xl sm:rounded-3xl border border-gray-200 shadow-sm">
+              <img src={qrCodeUrl} alt="QR Code" className="w-56 h-56 sm:w-64 sm:h-64 lg:w-72 lg:h-72" />
             </div>
           </div>
         )}
         
-        <div className="text-2xl text-white/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-          <p>📱 Use your phone to scan</p>
-          <p className="mt-2">🎯 Win amazing prizes!</p>
+        {/* Minimal footer text */}
+        <div className="text-base sm:text-lg lg:text-xl font-light tracking-wide animate-fadeIn" style={{ animationDelay: '0.4s', color: textConfig.textColorTertiary || '#6B7280' }}>
+          {textConfig.footerText}
         </div>
       </div>
     </div>

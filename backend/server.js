@@ -8,7 +8,7 @@ import { dirname, join } from 'path';
 import { existsSync } from 'fs';
 import { setupRoutes } from './routes/index.js';
 import { setupWebSocket } from './websocket/server.js';
-import { initDatabase } from './database/init.js';
+import { initDatabase, pool } from './database/init.js';
 
 dotenv.config();
 
@@ -144,6 +144,32 @@ initDatabase().then(() => {
   console.error('⚠️  Server will start but database features will be unavailable');
   console.error('⚠️  To fix: Install PostgreSQL and create database "spinthewheel"');
 });
+
+// Automatic cleanup of stuck sessions (runs every 5 minutes)
+async function autoCleanupStuckSessions() {
+  try {
+    const result = await pool.query(`
+      UPDATE game_sessions 
+      SET status = 'completed'
+      WHERE status = 'playing' 
+      AND created_at < NOW() - INTERVAL '2 minutes'
+      RETURNING id
+    `);
+    
+    if (result.rows.length > 0) {
+      console.log(`🧹 Auto-cleaned ${result.rows.length} stuck session(s)`);
+    }
+  } catch (error) {
+    // Silently fail - don't break server if cleanup fails
+    if (error.code !== 'ECONNREFUSED') {
+      console.error('Error in auto cleanup:', error.message);
+    }
+  }
+}
+
+// Start automatic cleanup job (every 5 minutes)
+setInterval(autoCleanupStuckSessions, 5 * 60 * 1000);
+console.log('🧹 Automatic stuck session cleanup enabled (every 5 minutes)');
 
 // Start server regardless of database status
 server.listen(PORT, () => {

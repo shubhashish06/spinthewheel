@@ -146,172 +146,177 @@ function SuperAdmin() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="text-xl text-gray-600">Loading instances...</div>
+          <div className="text-lg font-light text-gray-600">Loading instances...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">🎡 Spin the Wheel</h1>
-              <p className="text-sm text-gray-500">Super Admin Dashboard</p>
-            </div>
-            <a
-              href={`${window.location.origin}/admin?id=DEFAULT`}
-              className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800"
-            >
-              ← Back to Instance Dashboard
-            </a>
+    <div className="min-h-screen bg-white">
+      {/* Slim Fixed Top Navigation Bar - Apple Style */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            <h1 className="text-lg font-light text-gray-900 tracking-tight">Spin the Wheel</h1>
           </div>
         </div>
       </header>
 
+      {/* Hero Section */}
+      <div className="pt-14 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+          <h2 className="text-2xl sm:text-3xl font-light text-gray-900 tracking-tight leading-[1.1] mb-2">
+            Manage Instances
+          </h2>
+          <p className="text-sm sm:text-base font-light text-gray-600 tracking-wide max-w-2xl">
+            Create, edit, and manage all signage instances
+          </p>
+        </div>
+      </div>
+
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900">Manage Instances</h2>
-            <p className="text-sm text-gray-500 mt-1">Create, edit, and manage all signage instances</p>
-          </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+        <div className="flex justify-between items-center mb-6 sm:mb-8">
+          <div></div>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="text-sm sm:text-base font-light text-gray-900 hover:text-gray-600 transition-colors"
           >
-            {showCreateForm ? 'Cancel' : '+ Create New Instance'}
+            {showCreateForm ? 'Cancel' : <span className="hidden sm:inline">Create New Instance </span>}
+            {!showCreateForm && <span className="sm:hidden">Create →</span>}
           </button>
         </div>
 
         {message.text && (
-          <div className={`mb-4 p-4 rounded-lg ${
+          <div className={`mb-6 sm:mb-8 p-3 sm:p-4 rounded-lg border ${
             message.type === 'success'
-              ? 'bg-green-100 text-green-800 border border-green-300'
-              : 'bg-red-100 text-red-800 border border-red-300'
+              ? 'bg-green-50 text-green-900 border-green-200'
+              : 'bg-red-50 text-red-900 border-red-200'
           }`}>
-            {message.text}
+            <div className="text-xs sm:text-sm font-light">{message.text}</div>
           </div>
         )}
 
         {showCreateForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Create New Instance</h3>
-            <form onSubmit={handleCreate} className="space-y-4">
+          <div className="bg-white border border-gray-200/50 rounded-2xl p-4 sm:p-8 mb-8 sm:mb-12">
+            <h3 className="text-lg sm:text-xl font-light text-gray-900 mb-4 sm:mb-6 tracking-tight">Create New Instance</h3>
+            <form onSubmit={handleCreate} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Instance ID <span className="text-red-500">*</span>
+                <label className="block text-sm font-light text-gray-700 mb-2">
+                  Instance ID <span className="text-gray-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.id}
                   onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 text-base font-light"
                   placeholder="e.g., store_1, mall_kiosk"
                   required
                   pattern="[a-zA-Z0-9_]+"
                   title="Only letters, numbers, and underscores allowed"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs font-light text-gray-500 mt-2">
                   Use lowercase with underscores (e.g., store_1, mall_kiosk)
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location Name <span className="text-red-500">*</span>
+                <label className="block text-sm font-light text-gray-700 mb-2">
+                  Location Name <span className="text-gray-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.location_name}
                   onChange={(e) => setFormData({ ...formData, location_name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 text-base font-light"
                   placeholder="e.g., Downtown Store, Mall Kiosk"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Timezone <span className="text-red-500">*</span>
+                <label className="block text-sm font-light text-gray-700 mb-2">
+                  Timezone <span className="text-gray-400">*</span>
                 </label>
                 <select
                   value={formData.timezone}
                   onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 text-base font-light bg-white"
                   required
                 >
                   {getCommonTimezones().map(tz => (
                     <option key={tz.value} value={tz.value}>{tz.label}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs font-light text-gray-500 mt-2">
                   Select the timezone for this location. All timestamps will be displayed in this timezone.
                 </p>
               </div>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Create Instance
-              </button>
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  className="text-base font-light text-gray-900 hover:text-gray-600 transition-colors"
+                >
+                  Create Instance →
+                </button>
+              </div>
             </form>
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> Each instance will be created with default outcomes and visual layout.
+            <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-sm font-light text-gray-700">
+                <span className="font-normal">Note:</span> Each instance will be created with default outcomes and visual layout.
                 You can customize them in the instance dashboard.
               </p>
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Location Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Timezone
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+        <div className="bg-white border border-gray-200/50 rounded-2xl overflow-hidden">
+          {/* Mobile: Scrollable table */}
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <table className="min-w-full divide-y divide-gray-200/50">
+              <thead className="bg-gray-50/50">
+                <tr>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-light text-gray-600 uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-light text-gray-600 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-light text-gray-600 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-light text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    Timezone
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-light text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    Created
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-light text-gray-600 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200/50">
               {                instances.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                    No instances found. Create your first instance above.
+                  <td colSpan="6" className="px-4 sm:px-6 py-8 sm:py-12 text-center">
+                    <div className="text-sm sm:text-base font-light text-gray-500">No instances found. Create your first instance above.</div>
                   </td>
                 </tr>
               ) : (
                 instances.map(instance => (
-                  <tr key={instance.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{instance.id}</div>
+                  <tr key={instance.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-3 sm:px-6 py-4 sm:py-5 whitespace-nowrap">
+                      <div className="text-xs sm:text-sm font-light text-gray-900 truncate max-w-[80px] sm:max-w-none">{instance.id}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 sm:py-5 whitespace-nowrap">
                       {editingId === instance.id ? (
                         <input
                           type="text"
                           value={editData.location_name}
                           onChange={(e) => setEditData({ ...editData, location_name: e.target.value })}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          className="w-full sm:w-auto px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm font-light focus:outline-none focus:ring-1 focus:ring-gray-900"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               handleUpdate(instance.id);
@@ -322,110 +327,113 @@ function SuperAdmin() {
                           autoFocus
                         />
                       ) : (
-                        <div className="text-sm text-gray-900">{instance.location_name}</div>
+                        <div className="text-xs sm:text-sm font-light text-gray-900 truncate max-w-[120px] sm:max-w-none">{instance.location_name}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 sm:py-5 whitespace-nowrap">
                       {editingId === instance.id ? (
                         <label className="flex items-center">
                           <input
                             type="checkbox"
                             checked={editData.is_active}
                             onChange={(e) => setEditData({ ...editData, is_active: e.target.checked })}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                           />
-                          <span className="ml-2 text-sm text-gray-700">
+                          <span className="ml-2 text-xs sm:text-sm font-light text-gray-700">
                             {editData.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </label>
                       ) : (
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        <span className={`px-2 py-1 text-xs font-light rounded-full ${
                           instance.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
+                            ? 'bg-gray-100 text-gray-700'
+                            : 'bg-gray-50 text-gray-500'
                         }`}>
                           {instance.is_active ? 'Active' : 'Inactive'}
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 sm:py-5 whitespace-nowrap hidden md:table-cell">
                       {editingId === instance.id ? (
                         <select
                           value={editData.timezone}
                           onChange={(e) => setEditData({ ...editData, timezone: e.target.value })}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm min-w-[200px]"
+                          className="w-full sm:w-auto px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm font-light min-w-[200px] focus:outline-none focus:ring-1 focus:ring-gray-900 bg-white"
                         >
                           {getCommonTimezones().map(tz => (
                             <option key={tz.value} value={tz.value}>{tz.label}</option>
                           ))}
                         </select>
                       ) : (
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs sm:text-sm font-light text-gray-600">
                           {instance.timezone || 'UTC'}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 sm:px-6 py-4 sm:py-5 whitespace-nowrap text-xs sm:text-sm font-light text-gray-600 hidden lg:table-cell">
                       {formatTimestamp(instance.created_at, instance.timezone || 'UTC', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                      {editingId === instance.id ? (
-                        <>
-                          <button
-                            onClick={() => handleUpdate(instance.id)}
-                            className="text-green-600 hover:text-green-800 font-medium"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="text-gray-600 hover:text-gray-800"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <a
-                            href={`${window.location.origin}/admin?id=${instance.id}`}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                            title="Manage this instance"
-                          >
-                            Manage
-                          </a>
-                          <button
-                            onClick={() => handleEdit(instance)}
-                            className="text-yellow-600 hover:text-yellow-800"
-                            title="Edit instance"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleToggleActive(instance.id, instance.is_active)}
-                            className={`${
-                              instance.is_active
-                                ? 'text-orange-600 hover:text-orange-800'
-                                : 'text-green-600 hover:text-green-800'
-                            }`}
-                            title={instance.is_active ? 'Deactivate' : 'Activate'}
-                          >
-                            {instance.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
-                          <button
-                            onClick={() => handleDelete(instance.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete instance"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
+                    <td className="px-3 sm:px-6 py-4 sm:py-5 whitespace-nowrap">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                        {editingId === instance.id ? (
+                          <>
+                            <button
+                              onClick={() => handleUpdate(instance.id)}
+                              className="font-light text-gray-900 hover:text-gray-600 transition-colors py-1 px-2 min-h-[44px] sm:min-h-0"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="font-light text-gray-600 hover:text-gray-900 transition-colors py-1 px-2 min-h-[44px] sm:min-h-0"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <a
+                              href={`${window.location.origin}/admin?id=${instance.id}`}
+                              className="font-light text-gray-900 hover:text-gray-600 transition-colors py-1 px-2 min-h-[44px] sm:min-h-0 inline-block"
+                              title="Manage this instance"
+                            >
+                              Manage
+                            </a>
+                            <button
+                              onClick={() => handleEdit(instance)}
+                              className="font-light text-gray-600 hover:text-gray-900 transition-colors py-1 px-2 min-h-[44px] sm:min-h-0"
+                              title="Edit instance"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleToggleActive(instance.id, instance.is_active)}
+                              className={`font-light transition-colors py-1 px-2 min-h-[44px] sm:min-h-0 ${
+                                instance.is_active
+                                  ? 'text-gray-600 hover:text-gray-900'
+                                  : 'text-gray-900 hover:text-gray-600'
+                              }`}
+                              title={instance.is_active ? 'Deactivate' : 'Activate'}
+                            >
+                              {instance.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(instance.id)}
+                              className="font-light text-gray-600 hover:text-gray-900 transition-colors py-1 px-2 min-h-[44px] sm:min-h-0"
+                              title="Delete instance"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </main>
     </div>

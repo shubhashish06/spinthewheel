@@ -42,7 +42,7 @@ export async function createOutcome(req, res) {
       });
     }
 
-    const { label, probability_weight, signage_id } = req.body;
+    const { label, probability_weight, signage_id, text_color, background_color } = req.body;
 
     if (!label || probability_weight === undefined) {
       return res.status(400).json({ error: 'Label and probability_weight are required' });
@@ -61,12 +61,21 @@ export async function createOutcome(req, res) {
       return res.status(400).json({ error: 'Label must be a non-empty string' });
     }
 
+    // Validate color format (hex color: #RRGGBB)
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (text_color && !hexColorRegex.test(text_color)) {
+      return res.status(400).json({ error: 'text_color must be a valid hex color (e.g., #FFFFFF)' });
+    }
+    if (background_color && !hexColorRegex.test(background_color)) {
+      return res.status(400).json({ error: 'background_color must be a valid hex color (e.g., #DC2626)' });
+    }
+
     const { is_negative } = req.body;
     const result = await pool.query(
-      `INSERT INTO game_outcomes (label, probability_weight, signage_id, is_active, is_negative)
-       VALUES ($1, $2, $3, true, $4)
+      `INSERT INTO game_outcomes (label, probability_weight, signage_id, is_active, is_negative, text_color, background_color)
+       VALUES ($1, $2, $3, true, $4, $5, $6)
        RETURNING *`,
-      [label.trim(), weight, signage_id || null, is_negative || false]
+      [label.trim(), weight, signage_id || null, is_negative || false, text_color || null, background_color || null]
     );
 
     res.status(201).json(result.rows[0]);
@@ -88,11 +97,28 @@ export async function updateOutcome(req, res) {
     }
 
     const { id } = req.params;
-    const { label, probability_weight, is_active,is_negative } = req.body;
+    const { label, probability_weight, is_active, is_negative, text_color, background_color } = req.body;
 
     const updates = [];
     const values = [];
     let paramCount = 1;
+
+    // Validate color format if provided
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (text_color !== undefined) {
+      if (text_color !== null && !hexColorRegex.test(text_color)) {
+        return res.status(400).json({ error: 'text_color must be a valid hex color (e.g., #FFFFFF) or null' });
+      }
+      updates.push(`text_color = $${paramCount++}`);
+      values.push(text_color || null);
+    }
+    if (background_color !== undefined) {
+      if (background_color !== null && !hexColorRegex.test(background_color)) {
+        return res.status(400).json({ error: 'background_color must be a valid hex color (e.g., #DC2626) or null' });
+      }
+      updates.push(`background_color = $${paramCount++}`);
+      values.push(background_color || null);
+    }
 
     if (label !== undefined) {
       if (typeof label !== 'string' || label.trim().length === 0) {

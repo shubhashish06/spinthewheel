@@ -17,7 +17,7 @@ export async function getSignageConfig(req, res) {
 
     // Get signage instance (no auto-creation)
     const result = await pool.query(
-      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, 
+      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, logo_url, text_config,
               (created_at AT TIME ZONE 'UTC')::timestamptz as created_at 
        FROM signage_instances WHERE id = $1`,
       [id]
@@ -42,8 +42,8 @@ export async function getSignageConfig(req, res) {
 
     // Parse background_config if it exists, otherwise use default
     const backgroundConfig = signage.background_config || {
-      type: 'gradient',
-      colors: ['#991b1b', '#000000', '#991b1b']
+      type: 'solid',
+      color: '#ffffff'
     };
 
     res.json({
@@ -218,7 +218,7 @@ export async function listSignageInstances(req, res) {
     }
 
     const result = await pool.query(
-      'SELECT id, location_name, is_active, timezone, (created_at AT TIME ZONE \'UTC\')::timestamptz as created_at FROM signage_instances ORDER BY created_at DESC'
+      'SELECT id, location_name, is_active, timezone, logo_url, (created_at AT TIME ZONE \'UTC\')::timestamptz as created_at FROM signage_instances ORDER BY created_at DESC'
     );
 
     // Ensure timestamps are properly formatted as ISO strings for JavaScript
@@ -309,7 +309,7 @@ export async function updateSignageInstance(req, res) {
     }
 
     const { id } = req.params;
-    const { location_name, is_active, timezone } = req.body;
+    const { location_name, is_active, timezone, logo_url, text_config } = req.body;
 
     // Build update query dynamically based on provided fields
     const updates = [];
@@ -329,6 +329,16 @@ export async function updateSignageInstance(req, res) {
     if (timezone !== undefined) {
       updates.push(`timezone = $${paramCount++}`);
       values.push(timezone);
+    }
+
+    if (logo_url !== undefined) {
+      updates.push(`logo_url = $${paramCount++}`);
+      values.push(logo_url);
+    }
+
+    if (text_config !== undefined) {
+      updates.push(`text_config = $${paramCount++}`);
+      values.push(JSON.stringify(text_config));
     }
 
     if (updates.length === 0) {
