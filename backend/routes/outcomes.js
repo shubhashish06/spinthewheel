@@ -17,7 +17,7 @@ export async function getOutcomes(req, res) {
     const params = [];
 
     if (signageId) {
-      query += ' AND (signage_id = $1 OR signage_id IS NULL)';
+      query += ' AND signage_id = $1'; // ✅ Only show outcomes for this specific instance
       params.push(signageId);
     }
 
@@ -333,12 +333,12 @@ export async function getWeightStats(req, res) {
           (probability_weight::FLOAT / 
            (SELECT SUM(probability_weight) 
             FROM game_outcomes 
-            WHERE (signage_id = $1 OR signage_id IS NULL) 
+            WHERE signage_id = $1 
             AND is_active = true)::FLOAT * 100)::NUMERIC, 
           2
         ) as percentage
       FROM game_outcomes
-      WHERE (signage_id = $1 OR signage_id IS NULL)
+      WHERE signage_id = $1
       AND is_active = true
       ORDER BY probability_weight DESC
     `;

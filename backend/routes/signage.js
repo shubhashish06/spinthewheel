@@ -34,7 +34,7 @@ export async function getSignageConfig(req, res) {
     // Get active outcomes for this signage
     const outcomesResult = await pool.query(
       `SELECT * FROM game_outcomes 
-       WHERE (signage_id = $1 OR signage_id IS NULL) 
+       WHERE signage_id = $1 
        AND is_active = true
        ORDER BY probability_weight DESC`,
       [id]

@@ -17,10 +17,10 @@ export async function selectOutcome(signageId) {
       }
     }
 
-    // Get all active outcomes (ordered by weight), no cap
+    // Get all active outcomes for this specific instance (ordered by weight)
     const result = await pool.query(
       `SELECT * FROM game_outcomes 
-       WHERE (signage_id = $1 OR signage_id IS NULL) 
+       WHERE signage_id = $1 
        AND is_active = true
        ORDER BY probability_weight DESC`,
       [signageId]

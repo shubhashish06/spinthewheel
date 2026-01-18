@@ -56,7 +56,7 @@ function OutcomesManager({ signageId }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          signage_id: signageId === 'DEFAULT' ? null : signageId
+          signage_id: signageId // ✅ Always use actual signage_id, never null
         })
       });
       if (response.ok) {
