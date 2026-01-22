@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 function OutcomesManager({ signageId }) {
   const [outcomes, setOutcomes] = useState([]);
@@ -17,9 +17,17 @@ function OutcomesManager({ signageId }) {
   const [bulkWeights, setBulkWeights] = useState({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const colorUpdateTimeoutRef = useRef(null);
 
   useEffect(() => {
     loadOutcomes();
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (colorUpdateTimeoutRef.current) {
+        clearTimeout(colorUpdateTimeoutRef.current);
+      }
+    };
   }, [signageId]);
 
   const loadOutcomes = async () => {
@@ -155,27 +163,41 @@ function OutcomesManager({ signageId }) {
     }
   };
 
-  const handleUpdateColors = async (id, textColor, backgroundColor) => {
-    try {
-      const response = await fetch(`${window.location.origin}/api/outcomes/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text_color: textColor || null,
-          background_color: backgroundColor || null
-        })
-      });
-
-      if (response.ok) {
-        loadOutcomes();
-      } else {
-        const error = await response.json();
-        showMessage('error', error.error || 'Failed to update colors');
-      }
-    } catch (err) {
-      console.error('Failed to update colors:', err);
-      showMessage('error', 'Failed to update colors');
+  const handleUpdateColors = async (id, textColor, backgroundColor, e) => {
+    // Prevent any default behavior or event propagation
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
+
+    // Clear existing timeout
+    if (colorUpdateTimeoutRef.current) {
+      clearTimeout(colorUpdateTimeoutRef.current);
+    }
+
+    // Debounce the API call to avoid too many requests while dragging color picker
+    colorUpdateTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(`${window.location.origin}/api/outcomes/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            text_color: textColor || null,
+            background_color: backgroundColor || null
+          })
+        });
+
+        if (response.ok) {
+          loadOutcomes();
+        } else {
+          const error = await response.json();
+          showMessage('error', error.error || 'Failed to update colors');
+        }
+      } catch (err) {
+        console.error('Failed to update colors:', err);
+        showMessage('error', 'Failed to update colors');
+      }
+    }, 300); // 300ms debounce
   };
 
   const handleBulkEdit = () => {
@@ -239,7 +261,7 @@ function OutcomesManager({ signageId }) {
   const totalWeight = outcomes.reduce((sum, o) => sum + (o.probability_weight || 0), 0);
 
   if (loading) {
-    return <div className="text-center py-12">Loading outcomes...</div>;
+    return <div className="text-center py-8 text-sm text-gray-500">Loading outcomes...</div>;
   }
 
   return (
@@ -255,25 +277,25 @@ function OutcomesManager({ signageId }) {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Game Outcomes</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Game Outcomes</h2>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
             Total Weight: <span className="font-semibold">{totalWeight}</span>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {!bulkEditMode && (
             <>
               <button
                 onClick={handleBulkEdit}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
               >
                 ✏️ Bulk Edit Weights
               </button>
               <button
                 onClick={() => setShowForm(!showForm)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 {showForm ? 'Cancel' : '+ Add Outcome'}
               </button>
@@ -283,14 +305,14 @@ function OutcomesManager({ signageId }) {
             <>
               <button
                 onClick={handleBulkCancel}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                className="px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700"
                 disabled={saving}
               >
                 Cancel
               </button>
               <button
                 onClick={handleBulkSave}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                 disabled={saving}
               >
                 {saving ? 'Saving...' : '💾 Save All Weights'}
@@ -301,8 +323,8 @@ function OutcomesManager({ signageId }) {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Add New Outcome</h3>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
+          <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Add New Outcome</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -312,7 +334,7 @@ function OutcomesManager({ signageId }) {
                 type="text"
                 value={formData.label}
                 onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
@@ -324,7 +346,7 @@ function OutcomesManager({ signageId }) {
                 type="number"
                 value={formData.probability_weight}
                 onChange={(e) => setFormData({ ...formData, probability_weight: parseInt(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 min="0"
                 required
               />
@@ -332,7 +354,7 @@ function OutcomesManager({ signageId }) {
                 Higher weight = higher probability. Total weight: {totalWeight}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Background Color
@@ -342,7 +364,7 @@ function OutcomesManager({ signageId }) {
                     type="color"
                     value={formData.background_color || '#DC2626'}
                     onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
                   />
                   <input
                     type="text"
@@ -350,7 +372,7 @@ function OutcomesManager({ signageId }) {
                     onChange={(e) => setFormData({ ...formData, background_color: e.target.value })}
                     placeholder="#DC2626"
                     pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
@@ -366,7 +388,7 @@ function OutcomesManager({ signageId }) {
                     type="color"
                     value={formData.text_color || '#FFFFFF'}
                     onChange={(e) => setFormData({ ...formData, text_color: e.target.value })}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
                   />
                   <input
                     type="text"
@@ -374,7 +396,7 @@ function OutcomesManager({ signageId }) {
                     onChange={(e) => setFormData({ ...formData, text_color: e.target.value })}
                     placeholder="#FFFFFF"
                     pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
@@ -397,7 +419,7 @@ function OutcomesManager({ signageId }) {
             </div>
             <button
               type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
               Create Outcome
             </button>
@@ -406,33 +428,34 @@ function OutcomesManager({ signageId }) {
       )}
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Negative
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Label
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Colors
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Weight
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Probability
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Negative
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Label
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Colors
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Weight
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Probability
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
             {outcomes.length === 0 ? (
               <tr>
                 <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
@@ -457,7 +480,7 @@ function OutcomesManager({ signageId }) {
                 
                 return (
                   <tr key={outcome.id} className={bulkEditMode ? 'bg-yellow-50' : ''}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm">
                       <button
                         onClick={() => handleToggleNegative(outcome.id, outcome.is_negative)}
                         disabled={saving}
@@ -471,17 +494,18 @@ function OutcomesManager({ signageId }) {
                         {outcome.is_negative ? 'Negative' : 'Normal'}
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       {outcome.label}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1">
                           <label className="text-xs text-gray-500">BG:</label>
                           <input
                             type="color"
                             value={outcome.background_color || '#DC2626'}
-                            onChange={(e) => handleUpdateColors(outcome.id, outcome.text_color, e.target.value)}
+                            onChange={(e) => handleUpdateColors(outcome.id, outcome.text_color, e.target.value, e)}
+                            onClick={(e) => e.stopPropagation()}
                             className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
                             title="Background color"
                           />
@@ -491,14 +515,15 @@ function OutcomesManager({ signageId }) {
                           <input
                             type="color"
                             value={outcome.text_color || '#FFFFFF'}
-                            onChange={(e) => handleUpdateColors(outcome.id, e.target.value, outcome.background_color)}
+                            onChange={(e) => handleUpdateColors(outcome.id, e.target.value, outcome.background_color, e)}
+                            onClick={(e) => e.stopPropagation()}
                             className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
                             title="Text color"
                           />
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm">
                       {bulkEditMode ? (
                         <input
                           type="number"
@@ -551,7 +576,7 @@ function OutcomesManager({ signageId }) {
                         </button>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-3 whitespace-nowrap">
                       {!bulkEditMode && (
                         <button
                           onClick={() => handleToggleNegative(outcome.id, outcome.is_negative || false)}
@@ -576,19 +601,19 @@ function OutcomesManager({ signageId }) {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">
                       <span className={bulkEditMode ? 'font-semibold text-purple-600' : ''}>
                         {probability}%
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-3 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                         outcome.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}>
                         {outcome.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm">
                       {!bulkEditMode && (
                         <button
                           onClick={() => handleDelete(outcome.id)}
@@ -602,8 +627,9 @@ function OutcomesManager({ signageId }) {
                 );
               })
             )}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

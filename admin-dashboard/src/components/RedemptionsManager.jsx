@@ -67,12 +67,12 @@ function RedemptionsManager({ signageId, timezone = 'UTC' }) {
   };
 
   if (loading && !redemptions.length) {
-    return <div className="text-center py-12">Loading redemptions...</div>;
+    return <div className="text-center py-8 text-sm text-gray-500">Loading redemptions...</div>;
   }
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Redemptions Management</h2>
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Redemptions Management</h2>
 
       {message.text && (
         <div className={`mb-4 p-4 rounded-lg ${
@@ -86,40 +86,40 @@ function RedemptionsManager({ signageId, timezone = 'UTC' }) {
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <p className="text-sm font-medium text-gray-500">Total Redemptions</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total_redemptions || 0}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-gray-900">{stats.total_redemptions || 0}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <p className="text-sm font-medium text-gray-500">Redeemed</p>
-            <p className="text-2xl font-bold text-green-600">{stats.redeemed_count || 0}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-green-600">{stats.redeemed_count || 0}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <p className="text-sm font-medium text-gray-500">Pending</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats.pending_count || 0}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-yellow-600">{stats.pending_count || 0}</p>
           </div>
         </div>
       )}
 
       {/* Filter */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex space-x-4">
+      <div className="bg-white rounded-lg shadow p-4 mb-4 sm:mb-6">
+        <div className="flex flex-wrap gap-2 sm:gap-4">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            className={`px-3 py-2 text-sm rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
           >
             All
           </button>
           <button
             onClick={() => setFilter('pending')}
-            className={`px-4 py-2 rounded ${filter === 'pending' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            className={`px-3 py-2 text-sm rounded ${filter === 'pending' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
           >
             Pending
           </button>
           <button
             onClick={() => setFilter('redeemed')}
-            className={`px-4 py-2 rounded ${filter === 'redeemed' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+            className={`px-3 py-2 text-sm rounded ${filter === 'redeemed' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
           >
             Redeemed
           </button>
@@ -128,61 +128,63 @@ function RedemptionsManager({ signageId, timezone = 'UTC' }) {
 
       {/* Redemptions Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Outcome</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {redemptions.map((redemption) => (
-              <tr key={redemption.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                    {redemption.redemption_code}
-                  </code>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {redemption.outcome_label}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {redemption.user_email}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {redemption.user_phone}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatTimestamp(redemption.created_at || redemption.redeemed_at || redemption.session_timestamp, timezone)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    redemption.is_redeemed
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {redemption.is_redeemed ? 'Redeemed' : 'Pending'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {!redemption.is_redeemed && (
-                    <button
-                      onClick={() => handleMarkRedeemed(redemption.id)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      Mark Redeemed
-                    </button>
-                  )}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Outcome</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {redemptions.map((redemption) => (
+                <tr key={redemption.id}>
+                  <td className="px-4 sm:px-6 py-3 whitespace-nowrap">
+                    <code className="text-xs sm:text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                      {redemption.redemption_code}
+                    </code>
+                  </td>
+                  <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {redemption.outcome_label}
+                  </td>
+                  <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {redemption.user_email}
+                  </td>
+                  <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {redemption.user_phone}
+                  </td>
+                  <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {formatTimestamp(redemption.created_at || redemption.redeemed_at || redemption.session_timestamp, timezone)}
+                  </td>
+                  <td className="px-4 sm:px-6 py-3 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      redemption.is_redeemed
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {redemption.is_redeemed ? 'Redeemed' : 'Pending'}
+                    </span>
+                  </td>
+                  <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm">
+                    {!redemption.is_redeemed && (
+                      <button
+                        onClick={() => handleMarkRedeemed(redemption.id)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        Mark Redeemed
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {redemptions.length === 0 && (
           <div className="text-center py-12 text-gray-500">No redemptions found</div>
         )}

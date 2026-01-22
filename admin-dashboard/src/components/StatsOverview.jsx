@@ -27,49 +27,49 @@ function StatsOverview({ signageId }) {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Statistics Overview</h2>
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Statistics Overview</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center">
             <div className="p-3 bg-blue-100 rounded-lg">
-              <span className="text-2xl">👥</span>
+              <span className="text-xl sm:text-2xl">👥</span>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total_users || 0}</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{stats.total_users || 0}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center">
             <div className="p-3 bg-green-100 rounded-lg">
-              <span className="text-2xl">🎮</span>
+              <span className="text-xl sm:text-2xl">🎮</span>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Total Sessions</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total_sessions || 0}</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{stats.total_sessions || 0}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center">
             <div className="p-3 bg-purple-100 rounded-lg">
-              <span className="text-2xl">✅</span>
+              <span className="text-xl sm:text-2xl">✅</span>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.completed_sessions || 0}</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{stats.completed_sessions || 0}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-        <p className="text-gray-500">Activity feed coming soon...</p>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-4">Recent Activity</h3>
+        <p className="text-sm text-gray-500">Activity feed coming soon...</p>
       </div>
     </div>
   );
