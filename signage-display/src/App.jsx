@@ -22,6 +22,7 @@ function App() {
   const [logoUrl, setLogoUrl] = useState(null);
   const [logoSize, setLogoSize] = useState('xl');
   const [logoPosition, setLogoPosition] = useState('top-left');
+  const [qrDisplaySize, setQrDisplaySize] = useState(208);
   const [textConfig, setTextConfig] = useState({
     idleHeading: 'Spin the Wheel',
     idleSubtitle: 'Scan to play',
@@ -75,7 +76,7 @@ function App() {
         const formUrl = `${baseUrl}/play/?id=${id}&token=${tokenData.token}`;
         console.log(`✅ Generated QR code URL with token: ${formUrl}`);
         
-        QRCode.toDataURL(formUrl, { width: 400, margin: 2 })
+        QRCode.toDataURL(formUrl, { width: 640, margin: 2 })
           .then(url => {
             console.log('✅ QR code generated successfully');
             setQrCodeUrl(url);
@@ -162,6 +163,33 @@ function App() {
   useEffect(() => {
     currentGameRef.current = currentGame;
   }, [currentGame]);
+
+  // Scale QR larger in portrait, tighter in landscape
+  useEffect(() => {
+    const updateQrDisplaySize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const isPortrait = h >= w;
+
+      if (isPortrait) {
+        // Portrait: QR is the hero — use a large share of width / height
+        const size = Math.min(w * 0.62, h * 0.42, 480);
+        setQrDisplaySize(Math.max(220, Math.round(size)));
+      } else {
+        // Landscape: keep balanced with title + side margins
+        const size = Math.min(h * 0.36, w * 0.24, 300);
+        setQrDisplaySize(Math.max(160, Math.round(size)));
+      }
+    };
+
+    updateQrDisplaySize();
+    window.addEventListener('resize', updateQrDisplaySize);
+    window.addEventListener('orientationchange', updateQrDisplaySize);
+    return () => {
+      window.removeEventListener('resize', updateQrDisplaySize);
+      window.removeEventListener('orientationchange', updateQrDisplaySize);
+    };
+  }, []);
 
   const loadSignageConfig = async (id) => {
     try {
@@ -676,11 +704,15 @@ function App() {
 
       {qrCodeUrl && (
         <div className="animate-scaleIn" style={{ animationDelay: '0.15s' }}>
-          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-black/5 shadow-[0_8px_40px_rgba(0,0,0,0.06)]">
+          <div
+            className="bg-white rounded-2xl border border-black/5 shadow-[0_8px_40px_rgba(0,0,0,0.06)] transition-[padding] duration-300"
+            style={{ padding: Math.max(16, Math.round(qrDisplaySize * 0.08)) }}
+          >
             <img
               src={qrCodeUrl}
               alt="QR Code"
-              className="w-44 h-44 sm:w-52 sm:h-52 lg:w-56 lg:h-56 block"
+              className="block transition-[width,height] duration-300 ease-out"
+              style={{ width: qrDisplaySize, height: qrDisplaySize }}
             />
           </div>
         </div>
