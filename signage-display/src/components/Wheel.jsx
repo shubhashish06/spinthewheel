@@ -565,26 +565,26 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full relative">
-      <div className="text-center mb-6 sm:mb-8 relative z-10">
-        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-light mb-3 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
+    <div className="flex flex-col items-center justify-center h-full max-h-full relative py-2">
+      <div className="text-center mb-4 sm:mb-6 relative z-10 px-4">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light mb-2 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
           {displayReadyMessage}
         </h2>
         {ready ? (
-          <p className="text-xl sm:text-2xl lg:text-3xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+          <p className="text-lg sm:text-xl lg:text-2xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             {defaultReadyInstruction}
           </p>
         ) : (
-          <p className="text-xl sm:text-2xl lg:text-3xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+          <p className="text-lg sm:text-xl lg:text-2xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             {defaultPlayingMessage}
           </p>
         )}
       </div>
       
-      <div className="relative z-10">
+      <div className="relative z-10 flex-shrink min-h-0">
         <canvas
           ref={canvasRef}
-          className="max-w-full max-h-[75vh] sm:max-h-[80vh]"
+          className="max-w-full max-h-[58vh] sm:max-h-[62vh]"
           style={{
             filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.1))',
             transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',

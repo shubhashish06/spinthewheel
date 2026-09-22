@@ -478,16 +478,16 @@ function App() {
   const getLogoSizeClass = () => {
     switch (logoSize) {
       case 'sm':
-        return 'max-h-16 max-w-32';
+        return 'h-12 max-w-[7rem]';
       case 'md':
-        return 'max-h-24 max-w-40';
+        return 'h-16 max-w-[9rem]';
       case 'lg':
-        return 'max-h-32 max-w-56';
+        return 'h-20 max-w-[12rem]';
       case '2xl':
-        return 'max-h-48 max-w-96';
+        return 'h-28 max-w-[16rem]';
       case 'xl':
       default:
-        return 'max-h-40 max-w-72';
+        return 'h-24 max-w-[14rem]';
     }
   };
 
@@ -508,145 +508,185 @@ function App() {
     }
   };
 
-  const renderLogoBar = (placement) => {
+  const renderLogoImage = () => {
     if (!logoUrl) return null;
-    if (placement === 'top' && !isTopLogo) return null;
-    if (placement === 'bottom' && !isBottomLogo) return null;
-
     return (
-      <div className={`flex-shrink-0 w-full flex px-6 py-4 ${getLogoBarJustifyClass()}`}>
-        <img
-          src={logoUrl}
-          alt="Logo"
-          className={`${getLogoSizeClass()} object-contain opacity-95`}
-          onError={(e) => {
-            console.error('Failed to load logo:', logoUrl);
-            e.target.style.display = 'none';
-          }}
-        />
-      </div>
+      <img
+        src={logoUrl}
+        alt="Logo"
+        className={`${getLogoSizeClass()} w-auto object-contain`}
+        onError={(e) => {
+          console.error('Failed to load logo:', logoUrl);
+          e.target.style.display = 'none';
+        }}
+      />
     );
   };
 
+  // Fixed three-zone shell: header / main / footer — footer zone always reserved
+  const renderShell = (mainContent, { showFooterText = true, alignMain = 'center' } = {}) => (
+    <div
+      className="h-screen w-screen flex flex-col overflow-hidden"
+      style={getBackgroundStyle()}
+    >
+      {/* Header — logo when positioned at top; keep tight to main text */}
+      <header className={`flex-shrink-0 px-8 sm:px-12 ${isTopLogo ? 'pt-5 sm:pt-6 pb-0' : 'pt-4 pb-0'} flex items-center ${isTopLogo ? getLogoBarJustifyClass() : 'justify-center'}`}>
+        {isTopLogo ? renderLogoImage() : null}
+      </header>
+
+      {/* Main — start = closer to logo; center = balanced for game states */}
+      <main className={`flex-1 min-h-0 flex justify-center px-6 sm:px-10 ${
+        alignMain === 'start' ? 'items-start pt-3 sm:pt-4' : 'items-center'
+      }`}>
+        {mainContent}
+      </main>
+
+      {/* Footer — always pinned so bottom text never disappears */}
+      <footer className="flex-shrink-0 px-8 sm:px-12 pb-6 sm:pb-8 pt-3 min-h-[4.5rem] flex items-center">
+        {isBottomLogo ? (
+          <div className={`w-full flex items-end gap-6 ${getLogoBarJustifyClass()}`}>
+            {logoPosition === 'bottom-right' ? (
+              <>
+                {showFooterText && (
+                  <p
+                    className="flex-1 text-center text-base sm:text-lg lg:text-xl font-light tracking-wide"
+                    style={{ color: textConfig.textColorTertiary || '#6B7280' }}
+                  >
+                    {textConfig.footerText}
+                  </p>
+                )}
+                {!showFooterText && <div className="flex-1" />}
+                {renderLogoImage()}
+              </>
+            ) : (
+              <>
+                {renderLogoImage()}
+                {showFooterText ? (
+                  <p
+                    className="flex-1 text-center text-base sm:text-lg lg:text-xl font-light tracking-wide"
+                    style={{ color: textConfig.textColorTertiary || '#6B7280' }}
+                  >
+                    {textConfig.footerText}
+                  </p>
+                ) : (
+                  <div className="flex-1" />
+                )}
+              </>
+            )}
+          </div>
+        ) : showFooterText ? (
+          <p
+            className="w-full text-center text-base sm:text-lg lg:text-xl font-light tracking-wide"
+            style={{ color: textConfig.textColorTertiary || '#6B7280' }}
+          >
+            {textConfig.footerText}
+          </p>
+        ) : (
+          <div className="w-full h-6" aria-hidden="true" />
+        )}
+      </footer>
+    </div>
+  );
+
   if (state === STATES.READY) {
-    return (
-      <div 
-        className="h-screen w-screen flex flex-col relative overflow-hidden transition-all duration-500"
-        style={getBackgroundStyle()}
-      >
-        {renderLogoBar('top')}
-        <div className="flex-1 min-h-0 flex items-center justify-center">
-          <Wheel
-            userName={currentGame?.userName || 'Player'}
-            outcome={currentGame?.outcome}
-            outcomes={outcomes}
-            onComplete={handleWheelComplete}
-            ready={true}
-            readyMessage={textConfig.readyMessage}
-            readyInstruction={textConfig.readyInstruction}
-            textColorPrimary={textConfig.textColorPrimary}
-            textColorSecondary={textConfig.textColorSecondary}
-          />
-        </div>
-        {renderLogoBar('bottom')}
-      </div>
+    return renderShell(
+      <Wheel
+        userName={currentGame?.userName || 'Player'}
+        outcome={currentGame?.outcome}
+        outcomes={outcomes}
+        onComplete={handleWheelComplete}
+        ready={true}
+        readyMessage={textConfig.readyMessage}
+        readyInstruction={textConfig.readyInstruction}
+        textColorPrimary={textConfig.textColorPrimary}
+        textColorSecondary={textConfig.textColorSecondary}
+      />,
+      { showFooterText: false }
     );
   }
 
   if (state === STATES.PLAYING) {
-    return (
-      <div 
-        className="h-screen w-screen flex flex-col relative overflow-hidden transition-all duration-500"
-        style={getBackgroundStyle()}
-      >
-        {renderLogoBar('top')}
-        <div className="flex-1 min-h-0 flex items-center justify-center">
-          <Wheel
-            userName={currentGame?.userName || 'Player'}
-            outcome={currentGame?.outcome}
-            outcomes={outcomes}
-            onComplete={handleWheelComplete}
-            ready={false}
-            playingMessage={textConfig.playingMessage}
-            textColorPrimary={textConfig.textColorPrimary}
-            textColorSecondary={textConfig.textColorSecondary}
-          />
-        </div>
-        {renderLogoBar('bottom')}
-      </div>
+    return renderShell(
+      <Wheel
+        userName={currentGame?.userName || 'Player'}
+        outcome={currentGame?.outcome}
+        outcomes={outcomes}
+        onComplete={handleWheelComplete}
+        ready={false}
+        playingMessage={textConfig.playingMessage}
+        textColorPrimary={textConfig.textColorPrimary}
+        textColorSecondary={textConfig.textColorSecondary}
+      />,
+      { showFooterText: false }
     );
   }
 
   if (state === STATES.RESULT) {
     const isNegative = currentGame?.outcome?.is_negative || false;
-    
-    return (
-      <div 
-        className="h-screen w-screen flex flex-col relative overflow-hidden"
-        style={getBackgroundStyle()}
-      >
-        {renderLogoBar('top')}
-        <div className="flex-1 min-h-0 flex items-center justify-center">
-          <div className="text-center px-8 max-w-6xl w-full space-y-10 sm:space-y-12" style={{ color: textConfig.textColorPrimary || '#111827' }}>
-            {!isNegative && (
-              <div className="text-7xl sm:text-8xl lg:text-9xl animate-fadeIn">🎉</div>
-            )}
-            <div className="space-y-4 sm:space-y-6">
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-light tracking-tight animate-fadeIn" style={{ animationDelay: '0.1s', color: textConfig.textColorPrimary || '#111827' }}>
-                {currentGame?.userName}
-              </h1>
-              {!isNegative && (
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-light animate-fadeIn" style={{ animationDelay: '0.2s', color: textConfig.textColorSecondary || '#4B5563' }}>
-                  {textConfig.resultWinMessage}
-                </h2>
-              )}
-            </div>
-            <div className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-light animate-scaleIn" style={{ animationDelay: '0.3s', color: textConfig.textColorPrimary || '#111827' }}>
-              {currentGame?.outcome?.label || 'Congratulations!'}
-            </div>
-          </div>
+
+    return renderShell(
+      <div className="text-center max-w-4xl w-full space-y-6 sm:space-y-8">
+        {!isNegative && (
+          <div className="text-5xl sm:text-6xl lg:text-7xl animate-fadeIn">🎉</div>
+        )}
+        <div className="space-y-3 sm:space-y-4">
+          <h1
+            className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-light tracking-tight animate-fadeIn"
+            style={{ animationDelay: '0.1s', color: textConfig.textColorPrimary || '#111827' }}
+          >
+            {currentGame?.userName}
+          </h1>
+          {!isNegative && (
+            <h2
+              className="text-xl sm:text-2xl lg:text-3xl font-light animate-fadeIn"
+              style={{ animationDelay: '0.2s', color: textConfig.textColorSecondary || '#4B5563' }}
+            >
+              {textConfig.resultWinMessage}
+            </h2>
+          )}
         </div>
-        {renderLogoBar('bottom')}
-      </div>
+        <div
+          className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-light animate-scaleIn"
+          style={{ animationDelay: '0.3s', color: textConfig.textColorPrimary || '#111827' }}
+        >
+          {currentGame?.outcome?.label || 'Congratulations!'}
+        </div>
+      </div>,
+      { showFooterText: false }
     );
   }
 
-  // IDLE state - Apple-inspired minimalist hero section
-  return (
-    <div 
-      className="h-screen w-screen flex flex-col relative overflow-hidden"
-      style={getBackgroundStyle()}
-    >
-      {renderLogoBar('top')}
-      <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-        <div className="max-w-5xl w-full text-center px-8 space-y-10 sm:space-y-12 lg:space-y-16">
-          {/* Hero text */}
-          <div className="space-y-6 animate-fadeIn">
-            <h1 className="text-6xl sm:text-7xl lg:text-8xl xl:text-9xl font-light tracking-tight leading-[1.1]" style={{ color: textConfig.textColorPrimary || '#111827' }}>
-              {textConfig.idleHeading}
-            </h1>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-light tracking-wide" style={{ color: textConfig.textColorSecondary || '#4B5563' }}>
-              {textConfig.idleSubtitle}
-            </p>
-          </div>
-          
-          {/* QR Code */}
-          {qrCodeUrl && (
-            <div className="flex justify-center animate-scaleIn" style={{ animationDelay: '0.2s' }}>
-              <div className="bg-white p-6 sm:p-8 lg:p-10 rounded-2xl sm:rounded-3xl border border-gray-200 shadow-sm">
-                <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48 sm:w-56 sm:h-56 lg:w-64 lg:h-64" />
-              </div>
-            </div>
-          )}
-          
-          {/* Minimal footer text */}
-          <div className="text-base sm:text-lg lg:text-xl font-light tracking-wide animate-fadeIn" style={{ animationDelay: '0.4s', color: textConfig.textColorTertiary || '#6B7280' }}>
-            {textConfig.footerText}
+  // IDLE — brand, headline, subtitle, QR; keep logo and title close
+  return renderShell(
+    <div className="w-full max-w-3xl text-center flex flex-col items-center gap-6 sm:gap-8">
+      <div className="space-y-2 sm:space-y-3 animate-fadeIn">
+        <h1
+          className="text-5xl sm:text-6xl lg:text-7xl font-light tracking-tight leading-[1.05]"
+          style={{ color: textConfig.textColorPrimary || '#111827' }}
+        >
+          {textConfig.idleHeading}
+        </h1>
+        <p
+          className="text-lg sm:text-xl lg:text-2xl font-light tracking-wide"
+          style={{ color: textConfig.textColorSecondary || '#4B5563' }}
+        >
+          {textConfig.idleSubtitle}
+        </p>
+      </div>
+
+      {qrCodeUrl && (
+        <div className="animate-scaleIn" style={{ animationDelay: '0.15s' }}>
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-black/5 shadow-[0_8px_40px_rgba(0,0,0,0.06)]">
+            <img
+              src={qrCodeUrl}
+              alt="QR Code"
+              className="w-44 h-44 sm:w-52 sm:h-52 lg:w-56 lg:h-56 block"
+            />
           </div>
         </div>
-      </div>
-      {renderLogoBar('bottom')}
-    </div>
+      )}
+    </div>,
+    { showFooterText: true, alignMain: isTopLogo ? 'start' : 'center' }
   );
 }
 
