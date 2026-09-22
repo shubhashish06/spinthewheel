@@ -20,6 +20,8 @@ function App() {
     color: '#ffffff'
   });
   const [logoUrl, setLogoUrl] = useState(null);
+  const [logoSize, setLogoSize] = useState('xl');
+  const [logoPosition, setLogoPosition] = useState('top-left');
   const [textConfig, setTextConfig] = useState({
     idleHeading: 'Spin the Wheel',
     idleSubtitle: 'Scan to play',
@@ -175,12 +177,14 @@ function App() {
       });
       setOutcomes(sortedOutcomes);
       
-      // Load logo URL if available
+      // Load logo settings if available
       if (data.logo_url) {
         setLogoUrl(data.logo_url);
       } else {
         setLogoUrl(null);
       }
+      setLogoSize(data.logo_size || 'xl');
+      setLogoPosition(data.logo_position || 'top-left');
       
       // Load text config if available
       if (data.text_config && typeof data.text_config === 'object') {
@@ -325,6 +329,10 @@ function App() {
       stateRef.current = STATES.PLAYING;
     } else if (message.type === 'background_update') {
       setBackgroundConfig(message.background_config);
+    } else if (message.type === 'logo_update') {
+      setLogoUrl(message.logo_url || null);
+      setLogoSize(message.logo_size || 'xl');
+      setLogoPosition(message.logo_position || 'top-left');
     }
   };
 
@@ -467,25 +475,62 @@ function App() {
     };
   };
 
+  const getLogoPositionClass = () => {
+    switch (logoPosition) {
+      case 'top-center':
+        return 'absolute top-6 left-1/2 -translate-x-1/2 z-50';
+      case 'top-right':
+        return 'absolute top-6 right-6 z-50';
+      case 'bottom-left':
+        return 'absolute bottom-6 left-6 z-50';
+      case 'bottom-right':
+        return 'absolute bottom-6 right-6 z-50';
+      case 'top-left':
+      default:
+        return 'absolute top-6 left-6 z-50';
+    }
+  };
+
+  const getLogoSizeClass = () => {
+    switch (logoSize) {
+      case 'sm':
+        return 'max-h-16 max-w-32';
+      case 'md':
+        return 'max-h-24 max-w-40';
+      case 'lg':
+        return 'max-h-32 max-w-56';
+      case '2xl':
+        return 'max-h-48 max-w-96';
+      case 'xl':
+      default:
+        return 'max-h-40 max-w-72';
+    }
+  };
+
+  const renderLogo = () => {
+    if (!logoUrl) return null;
+    return (
+      <div className={getLogoPositionClass()}>
+        <img
+          src={logoUrl}
+          alt="Logo"
+          className={`${getLogoSizeClass()} object-contain opacity-95`}
+          onError={(e) => {
+            console.error('Failed to load logo:', logoUrl);
+            e.target.style.display = 'none';
+          }}
+        />
+      </div>
+    );
+  };
+
   if (state === STATES.READY) {
     return (
       <div 
         className="h-screen w-screen flex items-center justify-center relative overflow-hidden transition-all duration-500"
         style={getBackgroundStyle()}
       >
-        {logoUrl && (
-          <div className="absolute top-6 right-6 z-50">
-            <img 
-              src={logoUrl} 
-              alt="Logo" 
-              className="max-h-16 max-w-32 object-contain opacity-90"
-              onError={(e) => {
-                console.error('Failed to load logo:', logoUrl);
-                e.target.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
+        {renderLogo()}
         <Wheel
           userName={currentGame?.userName || 'Player'}
           outcome={currentGame?.outcome}
@@ -507,19 +552,7 @@ function App() {
         className="h-screen w-screen flex items-center justify-center relative overflow-hidden transition-all duration-500"
         style={getBackgroundStyle()}
       >
-        {logoUrl && (
-          <div className="absolute top-6 right-6 z-50">
-            <img 
-              src={logoUrl} 
-              alt="Logo" 
-              className="max-h-16 max-w-32 object-contain opacity-90"
-              onError={(e) => {
-                console.error('Failed to load logo:', logoUrl);
-                e.target.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
+        {renderLogo()}
         <Wheel
           userName={currentGame?.userName || 'Player'}
           outcome={currentGame?.outcome}
@@ -542,19 +575,7 @@ function App() {
         className="h-screen w-screen flex items-center justify-center relative"
         style={getBackgroundStyle()}
       >
-        {logoUrl && (
-          <div className="absolute top-6 right-6 z-50">
-            <img 
-              src={logoUrl} 
-              alt="Logo" 
-              className="max-h-16 max-w-32 object-contain opacity-90"
-              onError={(e) => {
-                console.error('Failed to load logo:', logoUrl);
-                e.target.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
+        {renderLogo()}
         <div className="text-center px-8 max-w-6xl w-full space-y-10 sm:space-y-12" style={{ color: textConfig.textColorPrimary || '#111827' }}>
           {!isNegative && (
             <div className="text-7xl sm:text-8xl lg:text-9xl animate-fadeIn">🎉</div>
@@ -583,19 +604,7 @@ function App() {
       className="h-screen w-screen flex flex-col items-center justify-center relative"
       style={getBackgroundStyle()}
     >
-      {logoUrl && (
-        <div className="absolute top-6 right-6 z-50">
-          <img 
-            src={logoUrl} 
-            alt="Logo" 
-            className="max-h-16 max-w-32 object-contain opacity-90"
-            onError={(e) => {
-              console.error('Failed to load logo:', logoUrl);
-              e.target.style.display = 'none';
-            }}
-          />
-        </div>
-      )}
+      {renderLogo()}
       <div className="max-w-5xl w-full text-center px-8 space-y-16">
         {/* Hero text */}
         <div className="space-y-6 animate-fadeIn">

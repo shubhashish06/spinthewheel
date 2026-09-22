@@ -13,6 +13,7 @@ function OutcomesManager({ signageId }) {
   });
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [editingOutcomeId, setEditingOutcomeId] = useState(null);
   const [bulkEditMode, setBulkEditMode] = useState(false);
   const [bulkWeights, setBulkWeights] = useState({});
   const [saving, setSaving] = useState(false);
@@ -59,28 +60,73 @@ function OutcomesManager({ signageId }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${window.location.origin}/api/outcomes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          signage_id: signageId // ✅ Always use actual signage_id, never null
-        })
-      });
-      if (response.ok) {
-        loadOutcomes();
-        setShowForm(false);
-        setFormData({ 
-          label: '', 
-          probability_weight: 10,
-          is_negative: false,
-          text_color: '',
-          background_color: ''
+      if (editingOutcomeId) {
+        const response = await fetch(`${window.location.origin}/api/outcomes/${editingOutcomeId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            label: formData.label,
+            probability_weight: formData.probability_weight,
+            is_negative: formData.is_negative || false,
+            text_color: formData.text_color || null,
+            background_color: formData.background_color || null
+          })
         });
+        if (response.ok) {
+          loadOutcomes();
+          resetForm();
+          showMessage('success', 'Outcome updated successfully');
+        } else {
+          const error = await response.json();
+          showMessage('error', error.error || 'Failed to update outcome');
+        }
+      } else {
+        const response = await fetch(`${window.location.origin}/api/outcomes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            signage_id: signageId
+          })
+        });
+        if (response.ok) {
+          loadOutcomes();
+          resetForm();
+          showMessage('success', 'Outcome created successfully');
+        } else {
+          const error = await response.json();
+          showMessage('error', error.error || 'Failed to create outcome');
+        }
       }
     } catch (err) {
-      console.error('Failed to create outcome:', err);
+      console.error('Failed to save outcome:', err);
+      showMessage('error', 'Failed to save outcome');
     }
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingOutcomeId(null);
+    setFormData({
+      label: '',
+      probability_weight: 10,
+      is_negative: false,
+      text_color: '',
+      background_color: ''
+    });
+  };
+
+  const handleEditOutcome = (outcome) => {
+    setEditingOutcomeId(outcome.id);
+    setFormData({
+      label: outcome.label || '',
+      probability_weight: outcome.probability_weight ?? 10,
+      is_negative: outcome.is_negative || false,
+      text_color: outcome.text_color || '',
+      background_color: outcome.background_color || ''
+    });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id) => {
@@ -294,7 +340,13 @@ function OutcomesManager({ signageId }) {
                 ✏️ Bulk Edit Weights
               </button>
               <button
-                onClick={() => setShowForm(!showForm)}
+                onClick={() => {
+                  if (showForm) {
+                    resetForm();
+                  } else {
+                    setShowForm(true);
+                  }
+                }}
                 className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 {showForm ? 'Cancel' : '+ Add Outcome'}
@@ -324,7 +376,9 @@ function OutcomesManager({ signageId }) {
 
       {showForm && (
         <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
-          <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Add New Outcome</h3>
+          <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">
+            {editingOutcomeId ? 'Edit Outcome' : 'Add New Outcome'}
+          </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -417,12 +471,23 @@ function OutcomesManager({ signageId }) {
                 </span>
               </label>
             </div>
-            <button
-              type="submit"
-              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              Create Outcome
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                {editingOutcomeId ? 'Update Outcome' : 'Create Outcome'}
+              </button>
+              {editingOutcomeId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-3 py-2 text-sm bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel Edit
+                </button>
+              )}
+            </div>
           </form>
         </div>
       )}
@@ -615,12 +680,20 @@ function OutcomesManager({ signageId }) {
                     </td>
                     <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-sm">
                       {!bulkEditMode && (
-                        <button
-                          onClick={() => handleDelete(outcome.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleEditOutcome(outcome)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(outcome.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

@@ -17,7 +17,7 @@ export async function getSignageConfig(req, res) {
 
     // Get signage instance (no auto-creation)
     const result = await pool.query(
-      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, logo_url, text_config,
+      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, logo_url, logo_size, logo_position, text_config,
               (created_at AT TIME ZONE 'UTC')::timestamptz as created_at 
        FROM signage_instances WHERE id = $1`,
       [id]
@@ -309,7 +309,7 @@ export async function updateSignageInstance(req, res) {
     }
 
     const { id } = req.params;
-    const { location_name, is_active, timezone, logo_url, text_config } = req.body;
+    const { location_name, is_active, timezone, logo_url, logo_size, logo_position, text_config } = req.body;
 
     // Build update query dynamically based on provided fields
     const updates = [];
@@ -336,6 +336,24 @@ export async function updateSignageInstance(req, res) {
       values.push(logo_url);
     }
 
+    const allowedSizes = ['sm', 'md', 'lg', 'xl', '2xl'];
+    if (logo_size !== undefined) {
+      if (logo_size !== null && !allowedSizes.includes(logo_size)) {
+        return res.status(400).json({ error: `logo_size must be one of: ${allowedSizes.join(', ')}` });
+      }
+      updates.push(`logo_size = $${paramCount++}`);
+      values.push(logo_size || 'xl');
+    }
+
+    const allowedPositions = ['top-left', 'top-right', 'top-center', 'bottom-left', 'bottom-right'];
+    if (logo_position !== undefined) {
+      if (logo_position !== null && !allowedPositions.includes(logo_position)) {
+        return res.status(400).json({ error: `logo_position must be one of: ${allowedPositions.join(', ')}` });
+      }
+      updates.push(`logo_position = $${paramCount++}`);
+      values.push(logo_position || 'top-left');
+    }
+
     if (text_config !== undefined) {
       updates.push(`text_config = $${paramCount++}`);
       values.push(JSON.stringify(text_config));
@@ -359,7 +377,19 @@ export async function updateSignageInstance(req, res) {
       return res.status(404).json({ error: 'Signage not found' });
     }
 
-    res.json(result.rows[0]);
+    const updated = result.rows[0];
+
+    // Broadcast logo changes so connected displays update live
+    if (logo_url !== undefined || logo_size !== undefined || logo_position !== undefined) {
+      broadcastToSignage(id, {
+        type: 'logo_update',
+        logo_url: updated.logo_url,
+        logo_size: updated.logo_size || 'xl',
+        logo_position: updated.logo_position || 'top-left'
+      });
+    }
+
+    res.json(updated);
   } catch (error) {
     console.error('Update signage instance error:', error);
     res.status(500).json({ error: 'Internal server error' });

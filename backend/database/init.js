@@ -99,6 +99,25 @@ export async function initDatabase() {
       console.log('Logo URL column check:', err.message);
     }
 
+    // Add logo_size and logo_position columns if they don't exist
+    try {
+      await pool.query(`
+        ALTER TABLE signage_instances 
+        ADD COLUMN IF NOT EXISTS logo_size VARCHAR(20) DEFAULT 'xl'
+      `);
+    } catch (err) {
+      console.log('Logo size column check:', err.message);
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE signage_instances 
+        ADD COLUMN IF NOT EXISTS logo_position VARCHAR(20) DEFAULT 'top-left'
+      `);
+    } catch (err) {
+      console.log('Logo position column check:', err.message);
+    }
+
     // Add text_config column if it doesn't exist
     try {
       await pool.query(`

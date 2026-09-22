@@ -6,6 +6,8 @@ function BackgroundManager({ signageId }) {
     colors: ['#991b1b', '#000000', '#991b1b']
   });
   const [logoUrl, setLogoUrl] = useState('');
+  const [logoSize, setLogoSize] = useState('xl');
+  const [logoPosition, setLogoPosition] = useState('top-left');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingLogo, setSavingLogo] = useState(false);
@@ -25,11 +27,13 @@ function BackgroundManager({ signageId }) {
         setBackgroundConfig(data);
       }
       
-      // Load logo URL
+      // Load logo settings
       const signageRes = await fetch(`${window.location.origin}/api/signage/${signageId}`);
       if (signageRes.ok) {
         const signageData = await signageRes.json();
         setLogoUrl(signageData.logo_url || '');
+        setLogoSize(signageData.logo_size || 'xl');
+        setLogoPosition(signageData.logo_position || 'top-left');
       }
     } catch (err) {
       console.error('Failed to load background:', err);
@@ -67,11 +71,15 @@ function BackgroundManager({ signageId }) {
       const res = await fetch(`${window.location.origin}/api/signage/${signageId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ logo_url: logoUrl || null })
+        body: JSON.stringify({
+          logo_url: logoUrl || null,
+          logo_size: logoSize || 'xl',
+          logo_position: logoPosition || 'top-left'
+        })
       });
 
       if (res.ok) {
-        showMessage('success', 'Logo updated successfully!');
+        showMessage('success', 'Logo settings updated successfully!');
       } else {
         const error = await res.json();
         showMessage('error', error.error || 'Failed to update logo');
@@ -404,14 +412,14 @@ function BackgroundManager({ signageId }) {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Logo Settings</h3>
-            <p className="text-sm text-gray-500 mt-1">Upload a logo to display in the upper right corner of the signage</p>
+            <p className="text-sm text-gray-500 mt-1">Configure logo URL, size, and position on the signage display</p>
           </div>
           <button
             onClick={handleSaveLogo}
             disabled={savingLogo}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {savingLogo ? 'Saving...' : '💾 Save Logo'}
+            {savingLogo ? 'Saving...' : 'Save Logo'}
           </button>
         </div>
         
@@ -428,8 +436,43 @@ function BackgroundManager({ signageId }) {
               placeholder="https://example.com/logo.png"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Enter a publicly accessible image URL (JPG, PNG, GIF, WebP, SVG). The logo will appear in the upper right corner.
+              Enter a publicly accessible image URL (JPG, PNG, GIF, WebP, SVG).
             </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Logo Size
+              </label>
+              <select
+                value={logoSize}
+                onChange={(e) => setLogoSize(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="sm">Small</option>
+                <option value="md">Medium</option>
+                <option value="lg">Large</option>
+                <option value="xl">Extra Large</option>
+                <option value="2xl">2X Large</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Logo Position
+              </label>
+              <select
+                value={logoPosition}
+                onChange={(e) => setLogoPosition(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="top-left">Top Left</option>
+                <option value="top-center">Top Center</option>
+                <option value="top-right">Top Right</option>
+                <option value="bottom-left">Bottom Left</option>
+                <option value="bottom-right">Bottom Right</option>
+              </select>
+            </div>
           </div>
           
           {logoUrl && logoUrl.trim() !== '' && (
@@ -438,11 +481,20 @@ function BackgroundManager({ signageId }) {
                 Logo Preview
               </label>
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex justify-end">
+                <div className={`flex ${
+                  logoPosition.includes('right') ? 'justify-end' :
+                  logoPosition.includes('center') ? 'justify-center' : 'justify-start'
+                }`}>
                   <img
                     src={logoUrl}
                     alt="Logo preview"
-                    className="max-h-16 max-w-32 object-contain"
+                    className={`object-contain ${
+                      logoSize === 'sm' ? 'max-h-16 max-w-32' :
+                      logoSize === 'md' ? 'max-h-24 max-w-40' :
+                      logoSize === 'lg' ? 'max-h-32 max-w-56' :
+                      logoSize === '2xl' ? 'max-h-48 max-w-96' :
+                      'max-h-40 max-w-72'
+                    }`}
                     onError={(e) => {
                       e.target.style.display = 'none';
                       const errorDiv = e.target.parentElement.querySelector('.logo-error');
@@ -458,7 +510,7 @@ function BackgroundManager({ signageId }) {
                     }}
                   />
                   <div className="hidden logo-error text-xs text-red-600 p-2 bg-red-50 rounded border border-red-200">
-                    ⚠️ Logo failed to load. Please check the URL is correct and publicly accessible.
+                    Logo failed to load. Please check the URL is correct and publicly accessible.
                   </div>
                 </div>
               </div>
@@ -468,12 +520,14 @@ function BackgroundManager({ signageId }) {
           <button
             onClick={async () => {
               setLogoUrl('');
+              setLogoSize('xl');
+              setLogoPosition('top-left');
               setSavingLogo(true);
               try {
                 const res = await fetch(`${window.location.origin}/api/signage/${signageId}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ logo_url: null })
+                  body: JSON.stringify({ logo_url: null, logo_size: 'xl', logo_position: 'top-left' })
                 });
                 if (res.ok) {
                   showMessage('success', 'Logo removed successfully!');
