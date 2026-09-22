@@ -10,20 +10,30 @@ const COLORS = [
   { main: '#DC2626', border: '#B91C1C' }  // Red
 ];
 
-function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMessage, readyInstruction, playingMessage, textColorPrimary = '#111827', textColorSecondary = '#4B5563' }) {
+function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMessage, readyInstruction, playingMessage, textColorPrimary = '#111827', textColorSecondary = '#4B5563', centerColor = '#DC2626' }) {
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const animationRef = useRef(null);
 
-  // Keep wheel perfectly square and sized to fit header/footer shell
+  // Keep wheel perfectly square; size from available container or viewport
   const getWheelSize = () => {
+    const container = containerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const available = Math.min(rect.width, rect.height);
+      if (available > 80) {
+        return Math.max(160, Math.floor(available * 0.95));
+      }
+    }
     const w = window.innerWidth;
     const h = window.innerHeight;
-    // Leave room for title above + shell header/footer (~38% of height reserved)
-    const maxByHeight = h * 0.55;
-    const maxByWidth = w * 0.88;
-    return Math.max(180, Math.min(maxByHeight, maxByWidth));
+    const isPortrait = h >= w;
+    if (isPortrait) {
+      return Math.max(180, Math.min(w * 0.88, h * 0.48));
+    }
+    return Math.max(180, Math.min(w * 0.5, h * 0.58));
   };
 
   useEffect(() => {
@@ -377,8 +387,8 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 2;
     
-    // Simple solid color - no gradient
-    ctx.fillStyle = '#DC2626';
+    // Simple solid color - customizable hub
+    ctx.fillStyle = centerColor || '#DC2626';
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
@@ -438,10 +448,10 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Enhanced red center dot at the tip (matching reference)
+    // Center tip dot matches hub color
     ctx.beginPath();
     ctx.arc(centerX, pointerTipY, 6, 0, 2 * Math.PI);
-    ctx.fillStyle = '#DC2626'; // Red center
+    ctx.fillStyle = centerColor || '#DC2626';
     ctx.shadowBlur = 6;
     ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     ctx.fill();
@@ -513,10 +523,17 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     window.addEventListener('resize', throttledResize);
     window.addEventListener('orientationchange', handleResize);
 
+    let resizeObserver;
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      resizeObserver = new ResizeObserver(throttledResize);
+      resizeObserver.observe(containerRef.current);
+    }
+
     return () => {
       window.removeEventListener('resize', throttledResize);
       window.removeEventListener('orientationchange', handleResize);
       clearTimeout(resizeTimeout);
+      if (resizeObserver) resizeObserver.disconnect();
     };
   }, []);
 
@@ -557,7 +574,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-  }, [outcomes, rotation, isSpinning, outcome, ready]);
+  }, [outcomes, rotation, isSpinning, outcome, ready, centerColor]);
 
   // Default messages if not provided
   const defaultReadyMessage = readyMessage || 'Good luck, {userName}!';
@@ -584,7 +601,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full max-h-full relative py-2">
+    <div className="flex flex-col items-center justify-center h-full max-h-full w-full relative py-2">
       <div className="text-center mb-4 sm:mb-6 relative z-10 px-4 flex-shrink-0">
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light mb-2 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
           {displayReadyMessage}
@@ -600,7 +617,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
         )}
       </div>
       
-      <div className="relative z-10 flex-shrink-0">
+      <div ref={containerRef} className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center">
         <canvas
           ref={canvasRef}
           className="block"

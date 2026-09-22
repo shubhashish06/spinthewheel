@@ -118,6 +118,16 @@ export async function initDatabase() {
       console.log('Logo position column check:', err.message);
     }
 
+    // Wheel center color (hub of the spinning wheel)
+    try {
+      await pool.query(`
+        ALTER TABLE signage_instances 
+        ADD COLUMN IF NOT EXISTS wheel_center_color VARCHAR(7) DEFAULT '#DC2626'
+      `);
+    } catch (err) {
+      console.log('Wheel center color column check:', err.message);
+    }
+
     // Add text_config column if it doesn't exist
     try {
       await pool.query(`

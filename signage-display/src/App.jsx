@@ -23,6 +23,7 @@ function App() {
   const [logoSize, setLogoSize] = useState('xl');
   const [logoPosition, setLogoPosition] = useState('top-left');
   const [qrDisplaySize, setQrDisplaySize] = useState(208);
+  const [wheelCenterColor, setWheelCenterColor] = useState('#DC2626');
   const [textConfig, setTextConfig] = useState({
     idleHeading: 'Spin the Wheel',
     idleSubtitle: 'Scan to play',
@@ -213,6 +214,7 @@ function App() {
       }
       setLogoSize(data.logo_size || 'xl');
       setLogoPosition(data.logo_position || 'top-left');
+      setWheelCenterColor(data.wheel_center_color || '#DC2626');
       
       // Load text config if available
       if (data.text_config && typeof data.text_config === 'object') {
@@ -361,6 +363,8 @@ function App() {
       setLogoUrl(message.logo_url || null);
       setLogoSize(message.logo_size || 'xl');
       setLogoPosition(message.logo_position || 'top-left');
+    } else if (message.type === 'wheel_update') {
+      setWheelCenterColor(message.wheel_center_color || '#DC2626');
     }
   };
 
@@ -628,6 +632,7 @@ function App() {
         readyInstruction={textConfig.readyInstruction}
         textColorPrimary={textConfig.textColorPrimary}
         textColorSecondary={textConfig.textColorSecondary}
+        centerColor={wheelCenterColor}
       />,
       { showFooterText: false }
     );
@@ -644,6 +649,7 @@ function App() {
         playingMessage={textConfig.playingMessage}
         textColorPrimary={textConfig.textColorPrimary}
         textColorSecondary={textConfig.textColorSecondary}
+        centerColor={wheelCenterColor}
       />,
       { showFooterText: false }
     );

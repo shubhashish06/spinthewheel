@@ -8,9 +8,11 @@ function BackgroundManager({ signageId }) {
   const [logoUrl, setLogoUrl] = useState('');
   const [logoSize, setLogoSize] = useState('xl');
   const [logoPosition, setLogoPosition] = useState('top-left');
+  const [wheelCenterColor, setWheelCenterColor] = useState('#DC2626');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingLogo, setSavingLogo] = useState(false);
+  const [savingWheel, setSavingWheel] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [preview, setPreview] = useState(true);
 
@@ -34,6 +36,7 @@ function BackgroundManager({ signageId }) {
         setLogoUrl(signageData.logo_url || '');
         setLogoSize(signageData.logo_size || 'xl');
         setLogoPosition(signageData.logo_position || 'top-left');
+        setWheelCenterColor(signageData.wheel_center_color || '#DC2626');
       }
     } catch (err) {
       console.error('Failed to load background:', err);
@@ -89,6 +92,31 @@ function BackgroundManager({ signageId }) {
       showMessage('error', 'Failed to save logo');
     } finally {
       setSavingLogo(false);
+    }
+  };
+
+  const handleSaveWheel = async () => {
+    setSavingWheel(true);
+    try {
+      const res = await fetch(`${window.location.origin}/api/signage/${signageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wheel_center_color: wheelCenterColor || '#DC2626'
+        })
+      });
+
+      if (res.ok) {
+        showMessage('success', 'Wheel center color updated successfully!');
+      } else {
+        const error = await res.json();
+        showMessage('error', error.error || 'Failed to update wheel center color');
+      }
+    } catch (err) {
+      console.error('Failed to save wheel center color:', err);
+      showMessage('error', 'Failed to save wheel center color');
+    } finally {
+      setSavingWheel(false);
     }
   };
 
@@ -547,6 +575,48 @@ function BackgroundManager({ signageId }) {
           >
             Remove Logo
           </button>
+        </div>
+      </div>
+
+      {/* Wheel Center Color */}
+      <div className="mt-6 bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Wheel Center Color</h3>
+            <p className="text-sm text-gray-500 mt-1">Color of the hub in the middle of the spinning wheel</p>
+          </div>
+          <button
+            onClick={handleSaveWheel}
+            disabled={savingWheel}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {savingWheel ? 'Saving...' : 'Save Color'}
+          </button>
+        </div>
+        <div className="flex items-center gap-4">
+          <input
+            type="color"
+            value={wheelCenterColor || '#DC2626'}
+            onChange={(e) => setWheelCenterColor(e.target.value)}
+            className="w-14 h-14 border border-gray-300 rounded-lg cursor-pointer"
+            title="Wheel center color"
+          />
+          <div className="flex-1">
+            <input
+              type="text"
+              value={wheelCenterColor || ''}
+              onChange={(e) => setWheelCenterColor(e.target.value)}
+              placeholder="#DC2626"
+              pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Hex color for the center circle (default #DC2626)</p>
+          </div>
+          <div
+            className="w-14 h-14 rounded-full border-2 border-black shadow-sm flex-shrink-0"
+            style={{ backgroundColor: wheelCenterColor || '#DC2626' }}
+            title="Preview"
+          />
         </div>
       </div>
 

@@ -17,7 +17,7 @@ export async function getSignageConfig(req, res) {
 
     // Get signage instance (no auto-creation)
     const result = await pool.query(
-      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, logo_url, logo_size, logo_position, text_config,
+      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, logo_url, logo_size, logo_position, wheel_center_color, text_config,
               (created_at AT TIME ZONE 'UTC')::timestamptz as created_at 
        FROM signage_instances WHERE id = $1`,
       [id]
@@ -309,7 +309,7 @@ export async function updateSignageInstance(req, res) {
     }
 
     const { id } = req.params;
-    const { location_name, is_active, timezone, logo_url, logo_size, logo_position, text_config } = req.body;
+    const { location_name, is_active, timezone, logo_url, logo_size, logo_position, wheel_center_color, text_config } = req.body;
 
     // Build update query dynamically based on provided fields
     const updates = [];
@@ -354,6 +354,15 @@ export async function updateSignageInstance(req, res) {
       values.push(logo_position || 'top-left');
     }
 
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (wheel_center_color !== undefined) {
+      if (wheel_center_color !== null && !hexColorRegex.test(wheel_center_color)) {
+        return res.status(400).json({ error: 'wheel_center_color must be a valid hex color (e.g., #DC2626)' });
+      }
+      updates.push(`wheel_center_color = $${paramCount++}`);
+      values.push(wheel_center_color || '#DC2626');
+    }
+
     if (text_config !== undefined) {
       updates.push(`text_config = $${paramCount++}`);
       values.push(JSON.stringify(text_config));
@@ -386,6 +395,13 @@ export async function updateSignageInstance(req, res) {
         logo_url: updated.logo_url,
         logo_size: updated.logo_size || 'xl',
         logo_position: updated.logo_position || 'top-left'
+      });
+    }
+
+    if (wheel_center_color !== undefined) {
+      broadcastToSignage(id, {
+        type: 'wheel_update',
+        wheel_center_color: updated.wheel_center_color || '#DC2626'
       });
     }
 
