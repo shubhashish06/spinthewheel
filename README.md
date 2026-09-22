@@ -563,40 +563,12 @@ cd admin-dashboard && npm run build
 
 ## Deployment
 
-### AWS Deployment
+### Production Setup
 
-The application is ready for production deployment on AWS. See the comprehensive deployment guides:
-
-- **[AWS_DEPLOYMENT.md](./AWS_DEPLOYMENT.md)** - Complete step-by-step AWS deployment guide
-- **[QUICK_DEPLOY.md](./QUICK_DEPLOY.md)** - Quick 5-step deployment guide
-
-#### Quick Deployment Steps
-
-1. **Set up AWS Infrastructure**
-   - Launch EC2 instance (Ubuntu 22.04, t3.small or larger)
-   - Create RDS PostgreSQL instance
-   - Configure security groups
-
-2. **Run Setup Scripts**
-   ```bash
-   # On EC2 instance
-   ./aws-setup.sh      # Initial system setup
-   ./deploy-aws.sh     # Deploy application
-   ```
-
-3. **Configure Domain & SSL**
-   - Point DNS to EC2 IP
-   - Update Nginx config with domain name
-   - Run Certbot for SSL certificate
-
-#### Deployment Files
-
-- `ecosystem.config.js` - PM2 process management configuration
-- `nginx.conf` - Nginx reverse proxy configuration
-- `deploy-aws.sh` - Automated deployment script
-- `aws-setup.sh` - Initial EC2 setup script
-- `Dockerfile` - Docker container configuration (optional)
-- `docker-compose.yml` - Docker Compose for local testing
+1. Build frontends: `npm run build`
+2. Configure `backend/.env` with your database and `PORT`
+3. Start with PM2: `npm run start:pm2` (uses `ecosystem.config.js`)
+4. Optionally put Nginx in front using `nginx.conf`
 
 #### Production Environment Variables
 
@@ -605,18 +577,21 @@ Create `backend/.env` with:
 ```env
 PORT=3001
 NODE_ENV=production
-DB_HOST=your-rds-endpoint.rds.amazonaws.com
+DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=spinthewheel
 DB_USER=postgres
 DB_PASSWORD=your-secure-password
-DATABASE_SSL=true
-SESSION_SECRET=your-random-secret-key
+DATABASE_SSL=false
 ```
 
-See `backend/.env.example` for a complete template.
+#### Deployment Files
 
-### Docker Deployment (Alternative)
+- `ecosystem.config.js` - PM2 process management
+- `nginx.conf` - Nginx reverse proxy
+- `Dockerfile` / `docker-compose.yml` - Containerized local/prod setup
+
+### Docker Deployment
 
 For containerized deployment:
 

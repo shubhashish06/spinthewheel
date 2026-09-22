@@ -145,4 +145,4 @@ npm start
 1. Create more instances in superadmin
 2. Customize outcomes and backgrounds per instance
 3. Set up signage displays in fullscreen/kiosk mode
-4. Deploy to production (see AWS_DEPLOYMENT.md)
+4. Deploy to production (see README Deployment section)

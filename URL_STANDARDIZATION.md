@@ -34,12 +34,10 @@ All components now use: **`?id=INSTANCE_ID`** ✅
    - Changed to: `params.get('id')`
 
 ### Documentation Updates
-2. **`AWS_DEPLOYMENT.md`** - Updated all mobile form URLs
-3. **`QUICK_DEPLOY.md`** - Updated all mobile form URLs
-4. **`QUICKSTART.md`** - Updated all mobile form URLs
-5. **`INSTANCE_SETUP.md`** - Updated all mobile form URLs
-6. **`ACCESS_URLS.md`** - Updated all mobile form URLs and parameter references
-7. **`README.md`** - Added URL Structure section with standardization note
+2. **`QUICKSTART.md`** - Updated all mobile form URLs
+3. **`INSTANCE_SETUP.md`** - Updated all mobile form URLs
+4. **`ACCESS_URLS.md`** - Updated all mobile form URLs and parameter references
+5. **`README.md`** - Added URL Structure section with standardization note
 
 ## Benefits
 

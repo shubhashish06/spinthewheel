@@ -1,5 +1,4 @@
 # Docker Compose configuration for local development/testing
-# For production, use AWS RDS instead of this PostgreSQL container
 
 version: '3.8'
 

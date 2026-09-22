@@ -10,7 +10,7 @@ const COLORS = [
   { main: '#DC2626', border: '#B91C1C' }  // Red
 ];
 
-function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMessage, readyInstruction, playingMessage, textColorPrimary = '#111827', textColorSecondary = '#4B5563' }) {
+function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMessage, readyInstruction, playingMessage, textColorPrimary = '#111827', textColorSecondary = '#4B5563', logoPosition = null }) {
   const canvasRef = useRef(null);
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -548,10 +548,23 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   // Replace {userName} placeholder
   const displayReadyMessage = defaultReadyMessage.replace('{userName}', userName);
 
+  const isTopLogo = logoPosition && logoPosition.startsWith('top');
+  const isBottomLogo = logoPosition && logoPosition.startsWith('bottom');
+  const messageSpacingClass = isTopLogo
+    ? 'mb-4 sm:mb-5'
+    : isBottomLogo
+      ? 'mb-8 sm:mb-10'
+      : 'mb-6 sm:mb-8';
+  const canvasSizeClass = isBottomLogo
+    ? 'max-w-full max-h-[68vh] sm:max-h-[72vh]'
+    : isTopLogo
+      ? 'max-w-full max-h-[70vh] sm:max-h-[75vh]'
+      : 'max-w-full max-h-[75vh] sm:max-h-[80vh]';
+
   // Don't render wheel until we have outcomes
   if (!outcomes.length || !outcome) {
     return (
-      <div className="flex flex-col items-center justify-center h-full">
+      <div className="flex flex-col items-center justify-center h-full w-full">
         <div className="text-center">
           <h2 className="text-6xl font-bold mb-3 drop-shadow-lg" style={{ color: textColorPrimary || '#111827' }}>
             {displayReadyMessage}
@@ -565,8 +578,8 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full relative">
-      <div className="text-center mb-6 sm:mb-8 relative z-10">
+    <div className="flex flex-col items-center justify-center h-full w-full relative">
+      <div className={`text-center ${messageSpacingClass} relative z-10`}>
         <h2 className="text-4xl sm:text-5xl lg:text-6xl font-light mb-3 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
           {displayReadyMessage}
         </h2>
@@ -584,7 +597,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       <div className="relative z-10">
         <canvas
           ref={canvasRef}
-          className="max-w-full max-h-[75vh] sm:max-h-[80vh]"
+          className={canvasSizeClass}
           style={{
             filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.1))',
             transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',

@@ -507,6 +507,33 @@ function App() {
     }
   };
 
+  // Push main content away from the logo so text/QR never overlap it
+  const getContentInsetStyle = () => {
+    if (!logoUrl) return {};
+
+    const clearance = {
+      sm: '7rem',
+      md: '9rem',
+      lg: '11rem',
+      xl: '13rem',
+      '2xl': '15rem'
+    }[logoSize] || '13rem';
+
+    switch (logoPosition) {
+      case 'top-center':
+        return { paddingTop: clearance };
+      case 'top-right':
+        return { paddingTop: clearance, paddingRight: '2rem' };
+      case 'bottom-left':
+        return { paddingBottom: clearance, paddingLeft: '2rem' };
+      case 'bottom-right':
+        return { paddingBottom: clearance, paddingRight: '2rem' };
+      case 'top-left':
+      default:
+        return { paddingTop: clearance, paddingLeft: '2rem' };
+    }
+  };
+
   const renderLogo = () => {
     if (!logoUrl) return null;
     return (
@@ -528,7 +555,7 @@ function App() {
     return (
       <div 
         className="h-screen w-screen flex items-center justify-center relative overflow-hidden transition-all duration-500"
-        style={getBackgroundStyle()}
+        style={{ ...getBackgroundStyle(), ...getContentInsetStyle() }}
       >
         {renderLogo()}
         <Wheel
@@ -541,6 +568,7 @@ function App() {
           readyInstruction={textConfig.readyInstruction}
           textColorPrimary={textConfig.textColorPrimary}
           textColorSecondary={textConfig.textColorSecondary}
+          logoPosition={logoUrl ? logoPosition : null}
         />
       </div>
     );
@@ -550,7 +578,7 @@ function App() {
     return (
       <div 
         className="h-screen w-screen flex items-center justify-center relative overflow-hidden transition-all duration-500"
-        style={getBackgroundStyle()}
+        style={{ ...getBackgroundStyle(), ...getContentInsetStyle() }}
       >
         {renderLogo()}
         <Wheel
@@ -562,6 +590,7 @@ function App() {
           playingMessage={textConfig.playingMessage}
           textColorPrimary={textConfig.textColorPrimary}
           textColorSecondary={textConfig.textColorSecondary}
+          logoPosition={logoUrl ? logoPosition : null}
         />
       </div>
     );
@@ -573,7 +602,7 @@ function App() {
     return (
       <div 
         className="h-screen w-screen flex items-center justify-center relative"
-        style={getBackgroundStyle()}
+        style={{ ...getBackgroundStyle(), ...getContentInsetStyle() }}
       >
         {renderLogo()}
         <div className="text-center px-8 max-w-6xl w-full space-y-10 sm:space-y-12" style={{ color: textConfig.textColorPrimary || '#111827' }}>
@@ -602,7 +631,7 @@ function App() {
   return (
     <div 
       className="h-screen w-screen flex flex-col items-center justify-center relative"
-      style={getBackgroundStyle()}
+      style={{ ...getBackgroundStyle(), ...getContentInsetStyle() }}
     >
       {renderLogo()}
       <div className="max-w-5xl w-full text-center px-8 space-y-16">
