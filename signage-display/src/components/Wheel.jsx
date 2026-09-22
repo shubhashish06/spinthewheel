@@ -16,6 +16,16 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   const [isSpinning, setIsSpinning] = useState(false);
   const animationRef = useRef(null);
 
+  // Keep wheel perfectly square and sized to fit header/footer shell
+  const getWheelSize = () => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    // Leave room for title above + shell header/footer (~38% of height reserved)
+    const maxByHeight = h * 0.55;
+    const maxByWidth = w * 0.88;
+    return Math.max(180, Math.min(maxByHeight, maxByWidth));
+  };
+
   useEffect(() => {
     // Only start spinning if we have outcome and we're not in ready state
     if (outcome && !isSpinning && !ready) {
@@ -31,13 +41,16 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     // Wait a moment for canvas to be ready
     setTimeout(() => {
       const dpr = window.devicePixelRatio || 1;
-      const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+      const size = getWheelSize();
       
-      // Set canvas size first
+      // Set canvas size first — equal width/height keeps a perfect circle
       canvas.width = size * dpr;
       canvas.height = size * dpr;
-      canvas.style.width = size + 'px';
-      canvas.style.height = size + 'px';
+      canvas.style.width = `${size}px`;
+      canvas.style.height = `${size}px`;
+      canvas.style.aspectRatio = '1 / 1';
+      canvas.style.maxWidth = 'none';
+      canvas.style.maxHeight = 'none';
       
       const ctx = canvas.getContext('2d');
       // Clear canvas before starting
@@ -449,15 +462,18 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     if (!canvas) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+    const size = getWheelSize();
     
     // Store current rotation to maintain it during resize
     const currentRotation = rotation;
     
     canvas.width = size * dpr;
     canvas.height = size * dpr;
-    canvas.style.width = size + 'px';
-    canvas.style.height = size + 'px';
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+    canvas.style.aspectRatio = '1 / 1';
+    canvas.style.maxWidth = 'none';
+    canvas.style.maxHeight = 'none';
 
     // Redraw if ready or spinning
     if ((ready || isSpinning) && outcomes.length > 0 && outcome) {
@@ -511,14 +527,17 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     if (!canvas) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+    const size = getWheelSize();
 
-    // Ensure canvas size is set
+    // Ensure canvas size is set as a perfect square
     if (canvas.width !== size * dpr || canvas.height !== size * dpr) {
       canvas.width = size * dpr;
       canvas.height = size * dpr;
-      canvas.style.width = size + 'px';
-      canvas.style.height = size + 'px';
+      canvas.style.width = `${size}px`;
+      canvas.style.height = `${size}px`;
+      canvas.style.aspectRatio = '1 / 1';
+      canvas.style.maxWidth = 'none';
+      canvas.style.maxHeight = 'none';
     }
 
     // Draw if we're ready (visible but not spinning) or spinning (have outcome and outcomes loaded)
@@ -566,7 +585,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
 
   return (
     <div className="flex flex-col items-center justify-center h-full max-h-full relative py-2">
-      <div className="text-center mb-4 sm:mb-6 relative z-10 px-4">
+      <div className="text-center mb-4 sm:mb-6 relative z-10 px-4 flex-shrink-0">
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light mb-2 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
           {displayReadyMessage}
         </h2>
@@ -581,11 +600,12 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
         )}
       </div>
       
-      <div className="relative z-10 flex-shrink min-h-0">
+      <div className="relative z-10 flex-shrink-0">
         <canvas
           ref={canvasRef}
-          className="max-w-full max-h-[58vh] sm:max-h-[62vh]"
+          className="block"
           style={{
+            aspectRatio: '1 / 1',
             filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.1))',
             transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
             opacity: (ready || isSpinning) ? 1 : 0,
