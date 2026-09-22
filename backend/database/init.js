@@ -128,6 +128,16 @@ export async function initDatabase() {
       console.log('Wheel center color column check:', err.message);
     }
 
+    // Wheel center hub size
+    try {
+      await pool.query(`
+        ALTER TABLE signage_instances 
+        ADD COLUMN IF NOT EXISTS wheel_center_size VARCHAR(20) DEFAULT 'md'
+      `);
+    } catch (err) {
+      console.log('Wheel center size column check:', err.message);
+    }
+
     // Add text_config column if it doesn't exist
     try {
       await pool.query(`

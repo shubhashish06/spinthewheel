@@ -24,6 +24,7 @@ function App() {
   const [logoPosition, setLogoPosition] = useState('top-left');
   const [qrDisplaySize, setQrDisplaySize] = useState(208);
   const [wheelCenterColor, setWheelCenterColor] = useState('#DC2626');
+  const [wheelCenterSize, setWheelCenterSize] = useState('md');
   const [textConfig, setTextConfig] = useState({
     idleHeading: 'Spin the Wheel',
     idleSubtitle: 'Scan to play',
@@ -215,6 +216,7 @@ function App() {
       setLogoSize(data.logo_size || 'xl');
       setLogoPosition(data.logo_position || 'top-left');
       setWheelCenterColor(data.wheel_center_color || '#DC2626');
+      setWheelCenterSize(data.wheel_center_size || 'md');
       
       // Load text config if available
       if (data.text_config && typeof data.text_config === 'object') {
@@ -365,6 +367,7 @@ function App() {
       setLogoPosition(message.logo_position || 'top-left');
     } else if (message.type === 'wheel_update') {
       setWheelCenterColor(message.wheel_center_color || '#DC2626');
+      setWheelCenterSize(message.wheel_center_size || 'md');
     }
   };
 
@@ -566,11 +569,13 @@ function App() {
         {isTopLogo ? renderLogoImage() : null}
       </header>
 
-      {/* Main — start = closer to logo; center = balanced for game states */}
-      <main className={`flex-1 min-h-0 flex justify-center px-6 sm:px-10 ${
-        alignMain === 'start' ? 'items-start pt-3 sm:pt-4' : 'items-center'
+      {/* Main — single centered composition; full size for wheel */}
+      <main className={`flex-1 min-h-0 flex justify-center w-full ${
+        alignMain === 'start' ? 'items-start pt-3 sm:pt-4 px-6 sm:px-10' : 'items-stretch px-2 sm:px-4'
       }`}>
-        {mainContent}
+        <div className="w-full h-full flex items-center justify-center">
+          {mainContent}
+        </div>
       </main>
 
       {/* Footer — always pinned so bottom text never disappears */}
@@ -633,6 +638,7 @@ function App() {
         textColorPrimary={textConfig.textColorPrimary}
         textColorSecondary={textConfig.textColorSecondary}
         centerColor={wheelCenterColor}
+        centerSize={wheelCenterSize}
       />,
       { showFooterText: false }
     );
@@ -650,6 +656,7 @@ function App() {
         textColorPrimary={textConfig.textColorPrimary}
         textColorSecondary={textConfig.textColorSecondary}
         centerColor={wheelCenterColor}
+        centerSize={wheelCenterSize}
       />,
       { showFooterText: false }
     );

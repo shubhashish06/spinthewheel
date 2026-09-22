@@ -17,7 +17,7 @@ export async function getSignageConfig(req, res) {
 
     // Get signage instance (no auto-creation)
     const result = await pool.query(
-      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, logo_url, logo_size, logo_position, wheel_center_color, text_config,
+      `SELECT id, location_name, qr_code_url, is_active, background_config, timezone, logo_url, logo_size, logo_position, wheel_center_color, wheel_center_size, text_config,
               (created_at AT TIME ZONE 'UTC')::timestamptz as created_at 
        FROM signage_instances WHERE id = $1`,
       [id]
@@ -309,7 +309,7 @@ export async function updateSignageInstance(req, res) {
     }
 
     const { id } = req.params;
-    const { location_name, is_active, timezone, logo_url, logo_size, logo_position, wheel_center_color, text_config } = req.body;
+    const { location_name, is_active, timezone, logo_url, logo_size, logo_position, wheel_center_color, wheel_center_size, text_config } = req.body;
 
     // Build update query dynamically based on provided fields
     const updates = [];
@@ -363,6 +363,15 @@ export async function updateSignageInstance(req, res) {
       values.push(wheel_center_color || '#DC2626');
     }
 
+    const allowedCenterSizes = ['sm', 'md', 'lg', 'xl', '2xl'];
+    if (wheel_center_size !== undefined) {
+      if (wheel_center_size !== null && !allowedCenterSizes.includes(wheel_center_size)) {
+        return res.status(400).json({ error: `wheel_center_size must be one of: ${allowedCenterSizes.join(', ')}` });
+      }
+      updates.push(`wheel_center_size = $${paramCount++}`);
+      values.push(wheel_center_size || 'md');
+    }
+
     if (text_config !== undefined) {
       updates.push(`text_config = $${paramCount++}`);
       values.push(JSON.stringify(text_config));
@@ -398,10 +407,11 @@ export async function updateSignageInstance(req, res) {
       });
     }
 
-    if (wheel_center_color !== undefined) {
+    if (wheel_center_color !== undefined || wheel_center_size !== undefined) {
       broadcastToSignage(id, {
         type: 'wheel_update',
-        wheel_center_color: updated.wheel_center_color || '#DC2626'
+        wheel_center_color: updated.wheel_center_color || '#DC2626',
+        wheel_center_size: updated.wheel_center_size || 'md'
       });
     }
 

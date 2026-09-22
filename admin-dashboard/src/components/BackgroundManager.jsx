@@ -9,6 +9,7 @@ function BackgroundManager({ signageId }) {
   const [logoSize, setLogoSize] = useState('xl');
   const [logoPosition, setLogoPosition] = useState('top-left');
   const [wheelCenterColor, setWheelCenterColor] = useState('#DC2626');
+  const [wheelCenterSize, setWheelCenterSize] = useState('md');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingLogo, setSavingLogo] = useState(false);
@@ -37,6 +38,7 @@ function BackgroundManager({ signageId }) {
         setLogoSize(signageData.logo_size || 'xl');
         setLogoPosition(signageData.logo_position || 'top-left');
         setWheelCenterColor(signageData.wheel_center_color || '#DC2626');
+        setWheelCenterSize(signageData.wheel_center_size || 'md');
       }
     } catch (err) {
       console.error('Failed to load background:', err);
@@ -102,19 +104,20 @@ function BackgroundManager({ signageId }) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          wheel_center_color: wheelCenterColor || '#DC2626'
+          wheel_center_color: wheelCenterColor || '#DC2626',
+          wheel_center_size: wheelCenterSize || 'md'
         })
       });
 
       if (res.ok) {
-        showMessage('success', 'Wheel center color updated successfully!');
+        showMessage('success', 'Wheel center settings updated successfully!');
       } else {
         const error = await res.json();
-        showMessage('error', error.error || 'Failed to update wheel center color');
+        showMessage('error', error.error || 'Failed to update wheel center settings');
       }
     } catch (err) {
-      console.error('Failed to save wheel center color:', err);
-      showMessage('error', 'Failed to save wheel center color');
+      console.error('Failed to save wheel center settings:', err);
+      showMessage('error', 'Failed to save wheel center settings');
     } finally {
       setSavingWheel(false);
     }
@@ -578,43 +581,66 @@ function BackgroundManager({ signageId }) {
         </div>
       </div>
 
-      {/* Wheel Center Color */}
+      {/* Wheel Center */}
       <div className="mt-6 bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Wheel Center Color</h3>
-            <p className="text-sm text-gray-500 mt-1">Color of the hub in the middle of the spinning wheel</p>
+            <h3 className="text-lg font-semibold text-gray-900">Wheel Center</h3>
+            <p className="text-sm text-gray-500 mt-1">Color and size of the hub in the middle of the spinning wheel</p>
           </div>
           <button
             onClick={handleSaveWheel}
             disabled={savingWheel}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {savingWheel ? 'Saving...' : 'Save Color'}
+            {savingWheel ? 'Saving...' : 'Save Center'}
           </button>
         </div>
-        <div className="flex items-center gap-4">
-          <input
-            type="color"
-            value={wheelCenterColor || '#DC2626'}
-            onChange={(e) => setWheelCenterColor(e.target.value)}
-            className="w-14 h-14 border border-gray-300 rounded-lg cursor-pointer"
-            title="Wheel center color"
-          />
-          <div className="flex-1">
-            <input
-              type="text"
-              value={wheelCenterColor || ''}
-              onChange={(e) => setWheelCenterColor(e.target.value)}
-              placeholder="#DC2626"
-              pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">Hex color for the center circle (default #DC2626)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Center Color</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={wheelCenterColor || '#DC2626'}
+                onChange={(e) => setWheelCenterColor(e.target.value)}
+                className="w-12 h-12 border border-gray-300 rounded-lg cursor-pointer"
+                title="Wheel center color"
+              />
+              <input
+                type="text"
+                value={wheelCenterColor || ''}
+                onChange={(e) => setWheelCenterColor(e.target.value)}
+                placeholder="#DC2626"
+                pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Center Size</label>
+            <select
+              value={wheelCenterSize}
+              onChange={(e) => setWheelCenterSize(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="sm">Small</option>
+              <option value="md">Medium</option>
+              <option value="lg">Large</option>
+              <option value="xl">Extra Large</option>
+              <option value="2xl">2X Large</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <span className="text-xs text-gray-500">Preview:</span>
           <div
-            className="w-14 h-14 rounded-full border-2 border-black shadow-sm flex-shrink-0"
-            style={{ backgroundColor: wheelCenterColor || '#DC2626' }}
+            className="rounded-full border-2 border-black shadow-sm flex-shrink-0"
+            style={{
+              backgroundColor: wheelCenterColor || '#DC2626',
+              width: wheelCenterSize === 'sm' ? 28 : wheelCenterSize === 'lg' ? 48 : wheelCenterSize === 'xl' ? 56 : wheelCenterSize === '2xl' ? 68 : 36,
+              height: wheelCenterSize === 'sm' ? 28 : wheelCenterSize === 'lg' ? 48 : wheelCenterSize === 'xl' ? 56 : wheelCenterSize === '2xl' ? 68 : 36
+            }}
             title="Preview"
           />
         </div>

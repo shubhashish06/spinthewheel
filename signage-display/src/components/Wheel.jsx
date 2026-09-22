@@ -10,30 +10,43 @@ const COLORS = [
   { main: '#DC2626', border: '#B91C1C' }  // Red
 ];
 
-function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMessage, readyInstruction, playingMessage, textColorPrimary = '#111827', textColorSecondary = '#4B5563', centerColor = '#DC2626' }) {
+function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMessage, readyInstruction, playingMessage, textColorPrimary = '#111827', textColorSecondary = '#4B5563', centerColor = '#DC2626', centerSize = 'md' }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const animationRef = useRef(null);
 
-  // Keep wheel perfectly square; size from available container or viewport
+  const CENTER_SIZE_SCALE = {
+    sm: 0.08,
+    md: 0.14,
+    lg: 0.2,
+    xl: 0.26,
+    '2xl': 0.34
+  };
+
+  // Keep wheel perfectly square; grow with available screen/container space
   const getWheelSize = () => {
-    const container = containerRef.current;
-    if (container) {
-      const rect = container.getBoundingClientRect();
-      const available = Math.min(rect.width, rect.height);
-      if (available > 80) {
-        return Math.max(160, Math.floor(available * 0.95));
-      }
-    }
     const w = window.innerWidth;
     const h = window.innerHeight;
     const isPortrait = h >= w;
-    if (isPortrait) {
-      return Math.max(180, Math.min(w * 0.88, h * 0.48));
+
+    // Prefer measured container when available
+    const container = containerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const available = Math.min(rect.width || 0, rect.height || 0);
+      if (available > 120) {
+        // Use nearly all available space in the wheel area
+        return Math.max(200, Math.floor(available * 0.98));
+      }
     }
-    return Math.max(180, Math.min(w * 0.5, h * 0.58));
+
+    // Viewport fallback — larger than before so the wheel clearly grows
+    if (isPortrait) {
+      return Math.max(220, Math.min(w * 0.92, h * 0.58));
+    }
+    return Math.max(240, Math.min(w * 0.72, h * 0.72));
   };
 
   useEffect(() => {
@@ -70,7 +83,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       
       const centerX = size / 2;
       const centerY = size / 2;
-      const radius = Math.min(centerX, centerY) - 40; // More space for outer rim
+      const radius = Math.min(centerX, centerY) - Math.max(12, Math.min(centerX, centerY) * 0.04); // More space for outer rim
 
       // Find the index of the winning outcome in the outcomes array
       // IMPORTANT: The outcomes array must be in the same order as displayed on the wheel
@@ -374,8 +387,9 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
 
-    // Draw minimal center circle - clean, simple design
-    const centerButtonRadius = Math.max(45, Math.min(60, radius * 0.1));
+    // Draw center hub — size scales with wheel + admin setting
+    const scale = CENTER_SIZE_SCALE[centerSize] || CENTER_SIZE_SCALE.md;
+    const centerButtonRadius = Math.max(24, Math.min(radius * 0.4, radius * scale));
     
     // Center circle - flat, minimal design
     ctx.beginPath();
@@ -494,7 +508,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       ctx.scale(dpr, dpr);
       const centerX = size / 2;
       const centerY = size / 2;
-      const radius = Math.min(centerX, centerY) - 40;
+      const radius = Math.min(centerX, centerY) - Math.max(12, Math.min(centerX, centerY) * 0.04);
       drawWheel(ctx, centerX, centerY, radius, currentRotation, outcomes);
     } else {
       // Clear canvas completely if not ready or spinning
@@ -508,34 +522,47 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     // Initial canvas setup
     updateCanvasSize();
 
-    // Add resize event listener
-    const handleResize = () => {
-      updateCanvasSize();
-    };
+    const handleResize = () => updateCanvasSize();
 
-    // Throttle resize events for better performance
     let resizeTimeout;
     const throttledResize = () => {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(handleResize, 100);
+      resizeTimeout = setTimeout(handleResize, 50);
     };
 
     window.addEventListener('resize', throttledResize);
     window.addEventListener('orientationchange', handleResize);
 
     let resizeObserver;
-    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+    const attachObserver = () => {
+      if (typeof ResizeObserver === 'undefined' || !containerRef.current) return;
+      if (resizeObserver) resizeObserver.disconnect();
       resizeObserver = new ResizeObserver(throttledResize);
       resizeObserver.observe(containerRef.current);
-    }
+    };
+
+    // Container may mount after outcomes load — retry briefly
+    attachObserver();
+    const observerRetry = setTimeout(attachObserver, 100);
+    const observerRetry2 = setTimeout(() => {
+      attachObserver();
+      updateCanvasSize();
+    }, 300);
 
     return () => {
       window.removeEventListener('resize', throttledResize);
       window.removeEventListener('orientationchange', handleResize);
       clearTimeout(resizeTimeout);
+      clearTimeout(observerRetry);
+      clearTimeout(observerRetry2);
       if (resizeObserver) resizeObserver.disconnect();
     };
-  }, []);
+  }, [outcomes.length, ready]);
+
+  // Redraw when center appearance changes
+  useEffect(() => {
+    updateCanvasSize();
+  }, [centerColor, centerSize]);
 
 
   // Redraw wheel when rotation or state changes
@@ -566,7 +593,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       ctx.scale(dpr, dpr);
       const centerX = size / 2;
       const centerY = size / 2;
-      const radius = Math.min(centerX, centerY) - 40;
+      const radius = Math.min(centerX, centerY) - Math.max(12, Math.min(centerX, centerY) * 0.04);
       drawWheel(ctx, centerX, centerY, radius, rotation, outcomes);
     } else {
       // Clear canvas completely if not ready or spinning
@@ -574,7 +601,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-  }, [outcomes, rotation, isSpinning, outcome, ready, centerColor]);
+  }, [outcomes, rotation, isSpinning, outcome, ready, centerColor, centerSize]);
 
   // Default messages if not provided
   const defaultReadyMessage = readyMessage || 'Good luck, {userName}!';
@@ -587,7 +614,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   // Don't render wheel until we have outcomes
   if (!outcomes.length || !outcome) {
     return (
-      <div className="flex flex-col items-center justify-center h-full">
+      <div className="flex flex-col items-center justify-center h-full w-full">
         <div className="text-center">
           <h2 className="text-6xl font-bold mb-3 drop-shadow-lg" style={{ color: textColorPrimary || '#111827' }}>
             {displayReadyMessage}
@@ -601,23 +628,27 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full max-h-full w-full relative py-2">
-      <div className="text-center mb-4 sm:mb-6 relative z-10 px-4 flex-shrink-0">
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light mb-2 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
+    <div className="flex flex-col items-center justify-center h-full w-full max-h-full relative">
+      <div className="text-center mb-3 sm:mb-4 relative z-10 px-4 flex-shrink-0">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-light mb-1 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
           {displayReadyMessage}
         </h2>
         {ready ? (
-          <p className="text-lg sm:text-xl lg:text-2xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+          <p className="text-base sm:text-lg lg:text-xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             {defaultReadyInstruction}
           </p>
         ) : (
-          <p className="text-lg sm:text-xl lg:text-2xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+          <p className="text-base sm:text-lg lg:text-xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             {defaultPlayingMessage}
           </p>
         )}
       </div>
       
-      <div ref={containerRef} className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center">
+      <div
+        ref={containerRef}
+        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center"
+        style={{ minHeight: '40vh' }}
+      >
         <canvas
           ref={canvasRef}
           className="block"
