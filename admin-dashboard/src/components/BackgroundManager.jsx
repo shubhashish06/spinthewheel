@@ -619,30 +619,59 @@ function BackgroundManager({ signageId }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Center Size</label>
-            <select
-              value={wheelCenterSize}
-              onChange={(e) => setWheelCenterSize(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="sm">Small</option>
-              <option value="md">Medium</option>
-              <option value="lg">Large</option>
-              <option value="xl">Extra Large</option>
-              <option value="2xl">2X Large</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const sizes = ['sm', 'md', 'lg', 'xl', '2xl'];
+                  const idx = sizes.indexOf(wheelCenterSize);
+                  if (idx > 0) setWheelCenterSize(sizes[idx - 1]);
+                }}
+                disabled={wheelCenterSize === 'sm'}
+                className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Decrease center size"
+              >
+                −
+              </button>
+              <select
+                value={wheelCenterSize}
+                onChange={(e) => setWheelCenterSize(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="sm">Small</option>
+                <option value="md">Medium</option>
+                <option value="lg">Large</option>
+                <option value="xl">Extra Large</option>
+                <option value="2xl">2X Large</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  const sizes = ['sm', 'md', 'lg', 'xl', '2xl'];
+                  const idx = sizes.indexOf(wheelCenterSize);
+                  if (idx < sizes.length - 1) setWheelCenterSize(sizes[idx + 1]);
+                }}
+                disabled={wheelCenterSize === '2xl'}
+                className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Increase center size"
+              >
+                +
+              </button>
+            </div>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
           <span className="text-xs text-gray-500">Preview:</span>
           <div
-            className="rounded-full border-2 border-black shadow-sm flex-shrink-0"
+            className="rounded-full border-2 border-black shadow-sm flex-shrink-0 transition-all"
             style={{
               backgroundColor: wheelCenterColor || '#DC2626',
-              width: wheelCenterSize === 'sm' ? 28 : wheelCenterSize === 'lg' ? 48 : wheelCenterSize === 'xl' ? 56 : wheelCenterSize === '2xl' ? 68 : 36,
-              height: wheelCenterSize === 'sm' ? 28 : wheelCenterSize === 'lg' ? 48 : wheelCenterSize === 'xl' ? 56 : wheelCenterSize === '2xl' ? 68 : 36
+              width: wheelCenterSize === 'sm' ? 28 : wheelCenterSize === 'md' ? 40 : wheelCenterSize === 'lg' ? 52 : wheelCenterSize === 'xl' ? 64 : 80,
+              height: wheelCenterSize === 'sm' ? 28 : wheelCenterSize === 'md' ? 40 : wheelCenterSize === 'lg' ? 52 : wheelCenterSize === 'xl' ? 64 : 80
             }}
             title="Preview"
           />
+          <span className="text-xs text-gray-500 capitalize">{wheelCenterSize}</span>
         </div>
       </div>
 

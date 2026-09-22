@@ -17,36 +17,36 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   const [isSpinning, setIsSpinning] = useState(false);
   const animationRef = useRef(null);
 
+  // Fraction of wheel radius used for the hub — clearly stepped sm→2xl
   const CENTER_SIZE_SCALE = {
-    sm: 0.08,
-    md: 0.14,
-    lg: 0.2,
-    xl: 0.26,
-    '2xl': 0.34
+    sm: 0.1,
+    md: 0.18,
+    lg: 0.26,
+    xl: 0.34,
+    '2xl': 0.42
   };
 
-  // Keep wheel perfectly square; grow with available screen/container space
+  // Size from viewport first so we never get stuck at container min-height
   const getWheelSize = () => {
     const w = window.innerWidth;
     const h = window.innerHeight;
     const isPortrait = h >= w;
+    // Header + footer + title above the wheel
+    const reservedY = isPortrait ? 200 : 170;
+    const reservedX = isPortrait ? 16 : 32;
+    const fromViewport = Math.min(w - reservedX, h - reservedY);
 
-    // Prefer measured container when available
     const container = containerRef.current;
     if (container) {
       const rect = container.getBoundingClientRect();
-      const available = Math.min(rect.width || 0, rect.height || 0);
-      if (available > 120) {
-        // Use nearly all available space in the wheel area
-        return Math.max(200, Math.floor(available * 0.98));
+      const fromContainer = Math.min(rect.width || 0, rect.height || 0);
+      // Take the larger value so a collapsed flex child cannot cap the wheel
+      if (fromContainer > 120) {
+        return Math.max(220, Math.floor(Math.max(fromViewport, fromContainer) * 0.96));
       }
     }
 
-    // Viewport fallback — larger than before so the wheel clearly grows
-    if (isPortrait) {
-      return Math.max(220, Math.min(w * 0.92, h * 0.58));
-    }
-    return Math.max(240, Math.min(w * 0.72, h * 0.72));
+    return Math.max(220, Math.floor(fromViewport * 0.96));
   };
 
   useEffect(() => {
@@ -387,9 +387,9 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
 
-    // Draw center hub — size scales with wheel + admin setting
+    // Draw center hub — size scales with wheel + admin setting (sm…2xl)
     const scale = CENTER_SIZE_SCALE[centerSize] || CENTER_SIZE_SCALE.md;
-    const centerButtonRadius = Math.max(24, Math.min(radius * 0.4, radius * scale));
+    const centerButtonRadius = Math.min(radius * 0.48, radius * scale);
     
     // Center circle - flat, minimal design
     ctx.beginPath();
@@ -628,17 +628,17 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full max-h-full relative">
-      <div className="text-center mb-3 sm:mb-4 relative z-10 px-4 flex-shrink-0">
-        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-light mb-1 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
+    <div className="flex flex-col items-center justify-center h-full w-full max-h-full relative overflow-hidden">
+      <div className="text-center mb-2 sm:mb-3 relative z-10 px-4 flex-shrink-0">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-light mb-0.5 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
           {displayReadyMessage}
         </h2>
         {ready ? (
-          <p className="text-base sm:text-lg lg:text-xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+          <p className="text-sm sm:text-base lg:text-lg font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             {defaultReadyInstruction}
           </p>
         ) : (
-          <p className="text-base sm:text-lg lg:text-xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+          <p className="text-sm sm:text-base lg:text-lg font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             {defaultPlayingMessage}
           </p>
         )}
@@ -646,8 +646,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       
       <div
         ref={containerRef}
-        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center"
-        style={{ minHeight: '40vh' }}
+        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center overflow-visible"
       >
         <canvas
           ref={canvasRef}

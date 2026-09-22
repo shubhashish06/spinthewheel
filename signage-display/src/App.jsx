@@ -571,9 +571,9 @@ function App() {
 
       {/* Main — single centered composition; full size for wheel */}
       <main className={`flex-1 min-h-0 flex justify-center w-full ${
-        alignMain === 'start' ? 'items-start pt-3 sm:pt-4 px-6 sm:px-10' : 'items-stretch px-2 sm:px-4'
+        alignMain === 'start' ? 'items-start pt-3 sm:pt-4 px-6 sm:px-10' : 'items-stretch px-1 sm:px-2'
       }`}>
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full min-h-0 flex items-center justify-center">
           {mainContent}
         </div>
       </main>
