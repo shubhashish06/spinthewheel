@@ -475,22 +475,6 @@ function App() {
     };
   };
 
-  const getLogoPositionClass = () => {
-    switch (logoPosition) {
-      case 'top-center':
-        return 'absolute top-6 left-1/2 -translate-x-1/2 z-50';
-      case 'top-right':
-        return 'absolute top-6 right-6 z-50';
-      case 'bottom-left':
-        return 'absolute bottom-6 left-6 z-50';
-      case 'bottom-right':
-        return 'absolute bottom-6 right-6 z-50';
-      case 'top-left':
-      default:
-        return 'absolute top-6 left-6 z-50';
-    }
-  };
-
   const getLogoSizeClass = () => {
     switch (logoSize) {
       case 'sm':
@@ -507,37 +491,30 @@ function App() {
     }
   };
 
-  // Push main content away from the logo so text/QR never overlap it
-  const getContentInsetStyle = () => {
-    if (!logoUrl) return {};
+  const isTopLogo = logoUrl && logoPosition?.startsWith('top');
+  const isBottomLogo = logoUrl && logoPosition?.startsWith('bottom');
 
-    const clearance = {
-      sm: '7rem',
-      md: '9rem',
-      lg: '11rem',
-      xl: '13rem',
-      '2xl': '15rem'
-    }[logoSize] || '13rem';
-
+  const getLogoBarJustifyClass = () => {
     switch (logoPosition) {
       case 'top-center':
-        return { paddingTop: clearance };
+        return 'justify-center';
       case 'top-right':
-        return { paddingTop: clearance, paddingRight: '2rem' };
-      case 'bottom-left':
-        return { paddingBottom: clearance, paddingLeft: '2rem' };
       case 'bottom-right':
-        return { paddingBottom: clearance, paddingRight: '2rem' };
+        return 'justify-end';
       case 'top-left':
+      case 'bottom-left':
       default:
-        return { paddingTop: clearance, paddingLeft: '2rem' };
+        return 'justify-start';
     }
   };
 
-  const renderLogo = () => {
+  const renderLogoBar = (placement) => {
     if (!logoUrl) return null;
+    if (placement === 'top' && !isTopLogo) return null;
+    if (placement === 'bottom' && !isBottomLogo) return null;
+
     return (
-      <div className={getLogoPositionClass()}>
+      <div className={`flex-shrink-0 w-full flex px-6 py-4 ${getLogoBarJustifyClass()}`}>
         <img
           src={logoUrl}
           alt="Logo"
@@ -554,22 +531,24 @@ function App() {
   if (state === STATES.READY) {
     return (
       <div 
-        className="h-screen w-screen flex items-center justify-center relative overflow-hidden transition-all duration-500"
-        style={{ ...getBackgroundStyle(), ...getContentInsetStyle() }}
+        className="h-screen w-screen flex flex-col relative overflow-hidden transition-all duration-500"
+        style={getBackgroundStyle()}
       >
-        {renderLogo()}
-        <Wheel
-          userName={currentGame?.userName || 'Player'}
-          outcome={currentGame?.outcome}
-          outcomes={outcomes}
-          onComplete={handleWheelComplete}
-          ready={true}
-          readyMessage={textConfig.readyMessage}
-          readyInstruction={textConfig.readyInstruction}
-          textColorPrimary={textConfig.textColorPrimary}
-          textColorSecondary={textConfig.textColorSecondary}
-          logoPosition={logoUrl ? logoPosition : null}
-        />
+        {renderLogoBar('top')}
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <Wheel
+            userName={currentGame?.userName || 'Player'}
+            outcome={currentGame?.outcome}
+            outcomes={outcomes}
+            onComplete={handleWheelComplete}
+            ready={true}
+            readyMessage={textConfig.readyMessage}
+            readyInstruction={textConfig.readyInstruction}
+            textColorPrimary={textConfig.textColorPrimary}
+            textColorSecondary={textConfig.textColorSecondary}
+          />
+        </div>
+        {renderLogoBar('bottom')}
       </div>
     );
   }
@@ -577,21 +556,23 @@ function App() {
   if (state === STATES.PLAYING) {
     return (
       <div 
-        className="h-screen w-screen flex items-center justify-center relative overflow-hidden transition-all duration-500"
-        style={{ ...getBackgroundStyle(), ...getContentInsetStyle() }}
+        className="h-screen w-screen flex flex-col relative overflow-hidden transition-all duration-500"
+        style={getBackgroundStyle()}
       >
-        {renderLogo()}
-        <Wheel
-          userName={currentGame?.userName || 'Player'}
-          outcome={currentGame?.outcome}
-          outcomes={outcomes}
-          onComplete={handleWheelComplete}
-          ready={false}
-          playingMessage={textConfig.playingMessage}
-          textColorPrimary={textConfig.textColorPrimary}
-          textColorSecondary={textConfig.textColorSecondary}
-          logoPosition={logoUrl ? logoPosition : null}
-        />
+        {renderLogoBar('top')}
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <Wheel
+            userName={currentGame?.userName || 'Player'}
+            outcome={currentGame?.outcome}
+            outcomes={outcomes}
+            onComplete={handleWheelComplete}
+            ready={false}
+            playingMessage={textConfig.playingMessage}
+            textColorPrimary={textConfig.textColorPrimary}
+            textColorSecondary={textConfig.textColorSecondary}
+          />
+        </div>
+        {renderLogoBar('bottom')}
       </div>
     );
   }
@@ -601,28 +582,31 @@ function App() {
     
     return (
       <div 
-        className="h-screen w-screen flex items-center justify-center relative"
-        style={{ ...getBackgroundStyle(), ...getContentInsetStyle() }}
+        className="h-screen w-screen flex flex-col relative overflow-hidden"
+        style={getBackgroundStyle()}
       >
-        {renderLogo()}
-        <div className="text-center px-8 max-w-6xl w-full space-y-10 sm:space-y-12" style={{ color: textConfig.textColorPrimary || '#111827' }}>
-          {!isNegative && (
-            <div className="text-7xl sm:text-8xl lg:text-9xl animate-fadeIn">🎉</div>
-          )}
-          <div className="space-y-4 sm:space-y-6">
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-light tracking-tight animate-fadeIn" style={{ animationDelay: '0.1s', color: textConfig.textColorPrimary || '#111827' }}>
-              {currentGame?.userName}
-            </h1>
+        {renderLogoBar('top')}
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <div className="text-center px-8 max-w-6xl w-full space-y-10 sm:space-y-12" style={{ color: textConfig.textColorPrimary || '#111827' }}>
             {!isNegative && (
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-light animate-fadeIn" style={{ animationDelay: '0.2s', color: textConfig.textColorSecondary || '#4B5563' }}>
-                {textConfig.resultWinMessage}
-              </h2>
+              <div className="text-7xl sm:text-8xl lg:text-9xl animate-fadeIn">🎉</div>
             )}
-          </div>
-          <div className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-light animate-scaleIn" style={{ animationDelay: '0.3s', color: textConfig.textColorPrimary || '#111827' }}>
-            {currentGame?.outcome?.label || 'Congratulations!'}
+            <div className="space-y-4 sm:space-y-6">
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-light tracking-tight animate-fadeIn" style={{ animationDelay: '0.1s', color: textConfig.textColorPrimary || '#111827' }}>
+                {currentGame?.userName}
+              </h1>
+              {!isNegative && (
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-light animate-fadeIn" style={{ animationDelay: '0.2s', color: textConfig.textColorSecondary || '#4B5563' }}>
+                  {textConfig.resultWinMessage}
+                </h2>
+              )}
+            </div>
+            <div className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-light animate-scaleIn" style={{ animationDelay: '0.3s', color: textConfig.textColorPrimary || '#111827' }}>
+              {currentGame?.outcome?.label || 'Congratulations!'}
+            </div>
           </div>
         </div>
+        {renderLogoBar('bottom')}
       </div>
     );
   }
@@ -630,35 +614,38 @@ function App() {
   // IDLE state - Apple-inspired minimalist hero section
   return (
     <div 
-      className="h-screen w-screen flex flex-col items-center justify-center relative"
-      style={{ ...getBackgroundStyle(), ...getContentInsetStyle() }}
+      className="h-screen w-screen flex flex-col relative overflow-hidden"
+      style={getBackgroundStyle()}
     >
-      {renderLogo()}
-      <div className="max-w-5xl w-full text-center px-8 space-y-16">
-        {/* Hero text */}
-        <div className="space-y-6 animate-fadeIn">
-          <h1 className="text-7xl sm:text-8xl lg:text-9xl font-light tracking-tight leading-[1.1]" style={{ color: textConfig.textColorPrimary || '#111827' }}>
-            {textConfig.idleHeading}
-          </h1>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-light tracking-wide" style={{ color: textConfig.textColorSecondary || '#4B5563' }}>
-            {textConfig.idleSubtitle}
-          </p>
-        </div>
-        
-        {/* QR Code */}
-        {qrCodeUrl && (
-          <div className="flex justify-center animate-scaleIn" style={{ animationDelay: '0.2s' }}>
-            <div className="bg-white p-6 sm:p-8 lg:p-10 rounded-2xl sm:rounded-3xl border border-gray-200 shadow-sm">
-              <img src={qrCodeUrl} alt="QR Code" className="w-56 h-56 sm:w-64 sm:h-64 lg:w-72 lg:h-72" />
-            </div>
+      {renderLogoBar('top')}
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+        <div className="max-w-5xl w-full text-center px-8 space-y-10 sm:space-y-12 lg:space-y-16">
+          {/* Hero text */}
+          <div className="space-y-6 animate-fadeIn">
+            <h1 className="text-6xl sm:text-7xl lg:text-8xl xl:text-9xl font-light tracking-tight leading-[1.1]" style={{ color: textConfig.textColorPrimary || '#111827' }}>
+              {textConfig.idleHeading}
+            </h1>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-light tracking-wide" style={{ color: textConfig.textColorSecondary || '#4B5563' }}>
+              {textConfig.idleSubtitle}
+            </p>
           </div>
-        )}
-        
-        {/* Minimal footer text */}
-        <div className="text-base sm:text-lg lg:text-xl font-light tracking-wide animate-fadeIn" style={{ animationDelay: '0.4s', color: textConfig.textColorTertiary || '#6B7280' }}>
-          {textConfig.footerText}
+          
+          {/* QR Code */}
+          {qrCodeUrl && (
+            <div className="flex justify-center animate-scaleIn" style={{ animationDelay: '0.2s' }}>
+              <div className="bg-white p-6 sm:p-8 lg:p-10 rounded-2xl sm:rounded-3xl border border-gray-200 shadow-sm">
+                <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48 sm:w-56 sm:h-56 lg:w-64 lg:h-64" />
+              </div>
+            </div>
+          )}
+          
+          {/* Minimal footer text */}
+          <div className="text-base sm:text-lg lg:text-xl font-light tracking-wide animate-fadeIn" style={{ animationDelay: '0.4s', color: textConfig.textColorTertiary || '#6B7280' }}>
+            {textConfig.footerText}
+          </div>
         </div>
       </div>
+      {renderLogoBar('bottom')}
     </div>
   );
 }
