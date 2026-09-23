@@ -26,27 +26,25 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
     '2xl': 0.42
   };
 
-  // Size from viewport first so we never get stuck at container min-height
+  // Fit square wheel inside the canvas area so title text above stays visible
   const getWheelSize = () => {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const isPortrait = h >= w;
-    // Header + footer + title above the wheel
-    const reservedY = isPortrait ? 200 : 170;
-    const reservedX = isPortrait ? 16 : 32;
-    const fromViewport = Math.min(w - reservedX, h - reservedY);
-
     const container = containerRef.current;
     if (container) {
       const rect = container.getBoundingClientRect();
-      const fromContainer = Math.min(rect.width || 0, rect.height || 0);
-      // Take the larger value so a collapsed flex child cannot cap the wheel
-      if (fromContainer > 120) {
-        return Math.max(220, Math.floor(Math.max(fromViewport, fromContainer) * 0.96));
+      const available = Math.min(rect.width || 0, rect.height || 0);
+      if (available > 100) {
+        // Stay inside container — never grow past the flex slot (avoids covering title)
+        return Math.max(160, Math.floor(available * 0.92));
       }
     }
 
-    return Math.max(220, Math.floor(fromViewport * 0.96));
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const isPortrait = h >= w;
+    // Reserve header + footer + ready/playing title block
+    const reservedY = isPortrait ? 240 : 210;
+    const reservedX = isPortrait ? 24 : 40;
+    return Math.max(160, Math.floor(Math.min(w - reservedX, h - reservedY) * 0.88));
   };
 
   useEffect(() => {
@@ -298,11 +296,18 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
 
       // Draw text with dynamic sizing based on number of outcomes
       const textAngle = startAngle + segmentAngle / 2;
+
+      // Hub radius (same formula as below) — keep labels outside the center
+      const hubScale = CENTER_SIZE_SCALE[centerSize] || CENTER_SIZE_SCALE.md;
+      const hubRadius = Math.min(radius * 0.48, radius * hubScale);
       
       // Dynamically adjust text radius based on number of outcomes
-      // More outcomes = closer to center to fit better
+      // More outcomes = closer to center to fit better, but never under the hub
       const textRadiusMultiplier = totalSegments <= 4 ? 0.7 : totalSegments <= 8 ? 0.65 : 0.6;
-      const textRadius = innerRadius * textRadiusMultiplier;
+      const textRadius = Math.max(
+        innerRadius * textRadiusMultiplier,
+        hubRadius + Math.max(18, radius * 0.06)
+      );
       const textX = centerX + Math.cos(textAngle) * textRadius;
       const textY = centerY + Math.sin(textAngle) * textRadius;
 
@@ -321,13 +326,8 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       
       ctx.fillStyle = textColor;
       
-      // Dynamically calculate font size based on number of outcomes and segment angle
-      // More outcomes = smaller segments = smaller font needed
-      // Base calculation: scale inversely with number of outcomes
-      const baseFontSize = radius * 0.09;
-      // Scale factor: decreases as number of outcomes increases
-      // Formula: 1 / (1 + (outcomes - 4) * 0.15) for outcomes > 4
-      // This ensures smooth scaling: 4 outcomes = 100%, 8 outcomes = ~73%, 12 outcomes = ~56%
+      // Font scales with wheel size; more outcomes → slightly smaller
+      const baseFontSize = radius * 0.085;
       const scaleFactor = totalSegments <= 4 
         ? 1.0 
         : totalSegments <= 8 
@@ -335,8 +335,8 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
         : 1.0 / (1 + (totalSegments - 4) * 0.15);
       
       const calculatedFontSize = baseFontSize * scaleFactor;
-      // Clamp between reasonable min/max values
-      const fontSize = Math.max(12, Math.min(36, calculatedFontSize));
+      // Min readable; max grows with radius so large wheels aren't tiny-text
+      const fontSize = Math.max(11, Math.min(radius * 0.11, calculatedFontSize));
       
       ctx.font = `300 ${fontSize}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif`;
       
@@ -350,12 +350,13 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 1;
       
-      // Dynamically adjust max width for text wrapping based on segment angle
-      // Smaller segments (more outcomes) = smaller max width
-      // Calculate arc length for the segment: radius * angle
+      // Max width from segment arc; leave gap from hub and outer rim
       const segmentArcLength = textRadius * segmentAngle;
-      // Use 60-70% of arc length as max width, but clamp to reasonable values
-      const maxWidth = Math.max(fontSize * 2, Math.min(innerRadius * 0.8, segmentArcLength * 0.65));
+      const radialRoom = Math.max(fontSize * 2, innerRadius - hubRadius - fontSize);
+      const maxWidth = Math.max(
+        fontSize * 2,
+        Math.min(radialRoom * 0.9, segmentArcLength * 0.62, innerRadius * 0.72)
+      );
       
       const words = outcomeItem.label.split(' ');
       let line = '';
@@ -629,16 +630,16 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full max-h-full relative overflow-hidden">
-      <div className="text-center mb-2 sm:mb-3 relative z-10 px-4 flex-shrink-0">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-light mb-0.5 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
+      <div className="text-center mb-2 sm:mb-3 relative z-20 px-4 flex-shrink-0">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-light mb-1 tracking-tight" style={{ color: textColorPrimary || '#111827' }}>
           {displayReadyMessage}
         </h2>
         {ready ? (
-          <p className="text-sm sm:text-base lg:text-lg font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+          <p className="text-base sm:text-lg lg:text-xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             {defaultReadyInstruction}
           </p>
         ) : (
-          <p className="text-sm sm:text-base lg:text-lg font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
+          <p className="text-base sm:text-lg lg:text-xl font-light tracking-wide" style={{ color: textColorSecondary || '#4B5563' }}>
             {defaultPlayingMessage}
           </p>
         )}
@@ -646,7 +647,7 @@ function Wheel({ userName, outcome, outcomes, onComplete, ready = false, readyMe
       
       <div
         ref={containerRef}
-        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center overflow-visible"
+        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden"
       >
         <canvas
           ref={canvasRef}
